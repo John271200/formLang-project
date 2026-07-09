@@ -1,0 +1,118 @@
+% iutparakou.sty — style commun des fiches TP (IUT/IFRI, Master GL)
+\ProvidesPackage{iutparakou}[2026 Fiches TP formlang]
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+% microtype VOLONTAIREMENT désactivé (cf. contraintes de compilation)
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning,arrows.meta,calc,fit,backgrounds,chains,
+                shapes.multipart,shapes.geometric,matrix,trees,decorations.pathreplacing}
+\usepackage[colorlinks=true,linkcolor=iutblue,urlcolor=iutorange]{hyperref}
+\usepackage{scrlayer-scrpage}
+
+% --- charte ---
+\definecolor{iutblue}{HTML}{1A3A6B}
+\definecolor{iutorange}{HTML}{E07B20}
+\definecolor{iutgrey}{HTML}{4A4A4A}
+\definecolor{codebg}{HTML}{F5F5F2}
+
+% éviter les mauvaises surprises de justification (cf. contraintes)
+\emergencystretch=4em
+
+% --- titres colorés ---
+\addtokomafont{section}{\color{iutblue}}
+\addtokomafont{subsection}{\color{iutblue}}
+\addtokomafont{subsubsection}{\color{iutorange}}
+\addtokomafont{title}{\color{iutblue}}
+
+% --- en-tête / pied ---
+\pagestyle{scrheadings}
+\clearpairofpagestyles
+\ihead{\small\color{iutgrey}\leftmark}
+\ohead{\small\color{iutgrey}IUT/IFRI — Master GL}
+\cfoot{\small\color{iutgrey}\thepage}
+\KOMAoptions{headsepline=true}
+\setkomafont{pageheadfoot}{\normalfont\small\color{iutgrey}}
+
+% --- listings : style nommé « C » (cf. contraintes) ---
+\lstdefinestyle{C}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{iutblue}\bfseries,
+  commentstyle=\color{iutorange}\itshape,
+  stringstyle=\color{iutgrey},
+  numberstyle=\tiny\color{iutgrey},
+  showstringspaces=false,
+  breaklines=true,
+  frame=leftline, framerule=2pt, rulecolor=\color{iutorange},
+  xleftmargin=8pt, aboveskip=6pt, belowskip=6pt,
+  columns=fullflexible, keepspaces=true,
+}
+\lstset{style=C}
+
+% --- boîtes tcolorbox ---
+% NB : pas d'\begin{itemize} dans un tcolorbox sous babel french -> prose + \textbullet
+\newtcolorbox{notion}[1][]{
+  enhanced, breakable, colback=iutblue!5, colframe=iutblue,
+  fonttitle=\bfseries\color{white}, coltitle=white,
+  attach boxed title to top left={xshift=6pt,yshift=-2pt},
+  boxed title style={colback=iutblue}, title={#1}, left=6pt,right=6pt}
+\newtcolorbox{exemple}[1][Exemple]{
+  enhanced, breakable, colback=iutorange!8, colframe=iutorange,
+  fonttitle=\bfseries\color{white}, coltitle=white,
+  attach boxed title to top left={xshift=6pt,yshift=-2pt},
+  boxed title style={colback=iutorange}, title={#1}, left=6pt,right=6pt}
+\newtcolorbox{gate}{
+  enhanced, breakable, colback=red!5, colframe=red!70!black,
+  fonttitle=\bfseries\color{white}, coltitle=white,
+  attach boxed title to top left={xshift=6pt,yshift=-2pt},
+  boxed title style={colback=red!70!black}, title={Gate (règle non négociable)},
+  left=6pt,right=6pt}
+\newtcolorbox{ethique}{
+  enhanced, breakable, colback=iutorange!6, colframe=iutorange!85!black,
+  fonttitle=\bfseries\color{white}, coltitle=white,
+  attach boxed title to top left={xshift=6pt,yshift=-2pt},
+  boxed title style={colback=iutorange!85!black}, title={Cadre éthique},
+  left=6pt,right=6pt}
+
+% --- styles TikZ maison (aucun nommé « out ») ---
+\tikzset{
+  etat/.style={circle, draw=iutblue, very thick, minimum size=9mm,
+               font=\small\bfseries, fill=iutblue!5},
+  etatfin/.style={etat, double, fill=iutorange!15, draw=iutorange!90!black},
+  fleche/.style={-{Stealth[length=2mm]}, thick, draw=iutblue!80},
+  noeud/.style={draw=iutblue, thick, rounded corners=2pt, fill=iutblue!5,
+                inner sep=3pt, font=\small},
+  feuille/.style={draw=iutorange!90!black, thick, rounded corners=2pt,
+                  fill=iutorange!12, inner sep=3pt, font=\small},
+  etatlabel/.style={font=\scriptsize\bfseries\color{iutorange!85!black}},
+  tapecell/.style={draw=iutblue, thick, minimum size=7mm, font=\ttfamily\small},
+  tapehead/.style={-{Stealth[length=2mm]}, very thick, iutorange!85!black},
+}
+
+% --- boîte « Objet formel » : intuition / formel / classe de problèmes / projet ---
+\newtcolorbox{objetformel}[1]{
+  enhanced, breakable, colback=iutblue!3, colframe=iutblue, boxrule=1pt,
+  left=8pt, right=8pt, top=9pt, bottom=6pt,
+  borderline west={3pt}{-1pt}{iutorange!85!black},
+  fonttitle=\bfseries\color{white}, coltitle=white,
+  attach boxed title to top left={xshift=6pt,yshift=-2pt},
+  boxed title style={colback=iutblue}, title={Objet formel \textemdash\ #1}}
+\newcommand{\champ}[1]{\par\smallskip\noindent\textbf{\color{iutorange!85!black}#1}\ }
+
+% en-tête de fiche
+\newcommand{\fichetitre}[3]{%
+  \begin{tcolorbox}[enhanced,colback=iutblue,colframe=iutblue,sharp corners,
+      coltext=white,left=10pt,right=10pt,top=8pt,bottom=8pt]
+    {\LARGE\bfseries #1}\\[2pt]
+    {\large #2}\\[4pt]
+    {\small #3}
+  \end{tcolorbox}\vspace{4pt}}

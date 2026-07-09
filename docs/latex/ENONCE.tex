@@ -1,0 +1,1046 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\usepackage{tocloft}
+\setlength{\parskip}{2pt}
+
+\begin{document}
+
+% ===================== PAGE DE GARDE =====================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tcolorbox}[enhanced,colback=iutblue,colframe=iutblue,sharp corners,
+   coltext=white,height=6cm,valign=center,left=14pt,right=14pt]
+  {\small IUT / IFRI — Université de Parakou}\\[2pt]
+  {\small Master Génie Logiciel — Théorie des langages \& calculabilité}\\[14pt]
+  {\Huge\bfseries De l'automate fini\\[4pt] à la machine universelle}\\[10pt]
+  {\large\itshape Projet intégrateur — bibliothèque \texttt{formlang}}
+\end{tcolorbox}
+
+\vspace{10mm}
+\begin{tcolorbox}[enhanced,colback=iutorange!8,colframe=iutorange,left=10pt,right=10pt]
+\textbf{Énoncé étudiant} — cinq journées, une seule bibliothèque, quatre applications.\\[4pt]
+\textbullet\ \textbf{Durée} : 1 semaine (5 jours + soutenance) \quad\textbullet\ \textbf{Binôme}
+\quad\textbullet\ \textbf{Langage} : Python 3.10+ (\texttt{pytest} seul).\\[2pt]
+\textbullet\ \textbf{Rendu} : dépôt Git \texttt{NOM1\_NOM2\_formlang/} + rapport PDF + soutenance.
+\end{tcolorbox}
+
+\vfill
+\begin{center}
+{\small Auteur du sujet : \textbf{Dr. Mêton ATINDEHOU}}\\[2pt]
+{\footnotesize\color{iutgrey} Charte IUT/IFRI — bleu \texttt{\#1A3A6B} / orange \texttt{\#E07B20}}
+\end{center}
+\end{titlepage}
+
+% ===================== SOMMAIRE =====================
+\renewcommand{\cftsecfont}{\color{iutblue}\bfseries}
+\tableofcontents
+\clearpage
+
+% ===================== CHAPEAU =====================
+\section{Présentation générale}
+
+\subsection{Le fil rouge}
+Ce projet pose \textbf{une seule question}, à cinq niveaux de difficulté croissante :
+\emph{reconnaître une structure} — depuis un simple motif dans un mot jusqu'à
+n'importe quel calcul. À chaque étage, une leçon se répète :
+\begin{quote}\itshape
+plus la structure à reconnaître est riche, plus il faut de \textbf{mémoire} — et il
+existe un seuil (la machine universelle) où l'on gagne l'universalité mais où l'on
+\textbf{perd la décidabilité}.
+\end{quote}
+On ne construit pas « trois TP séparés » mais \textbf{un cœur unique} (\texttt{formlang/})
+que l'on \textbf{réutilise} : deux applications instancient le même automate d'arbres, une
+troisième partage la structure des mêmes termes, une quatrième décrit des tables de
+machines de Turing exécutées par une machine universelle. Cette \emph{réutilisation}
+est le cœur de l'évaluation.
+
+\subsection{La hiérarchie de Chomsky, étage par étage}
+\begin{center}\small
+\begin{tabular}{@{}clll@{}}
+\toprule
+Jour & Étage & Pouvoir de reconnaissance & Mémoire \\\midrule
+1 & Régulier & langages réguliers & état fini \\
+2 & Hors-contexte & langages algébriques & pile (LIFO) \\
+3 & \textbf{Arbres} & langages d'arbres réguliers & un état par nœud \\
+4 & Calculable & récursivement énumérable & ruban libre \\
+5 & Transversal & — & (congruence, intégration) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent Un mot $a_1\cdots a_n$ est un arbre dégénéré (branche unaire) ; un automate fini
+est un automate d'arbres « tout en arité~1 ». Vous le \textbf{vérifierez en code}.
+
+\subsection{Une bibliothèque, quatre applications}
+Les applications n'ont pas le droit de réécrire un automate : elles \textbf{instancient}
+ceux de \texttt{formlang}. C'est la règle « gate » la plus importante du projet.
+
+\begin{center}
+\begin{tikzpicture}[mod/.style={draw=iutblue,thick,rounded corners=2pt,fill=iutblue!8,
+    font=\footnotesize\ttfamily,inner sep=3pt},
+    app/.style={draw=iutorange!85!black,thick,rounded corners=2pt,fill=iutorange!12,
+    font=\footnotesize\ttfamily,inner sep=3pt},
+    fl/.style={-{Stealth[length=1.8mm]},thick,iutblue!70}]
+  \node[mod] (tree) at (0,0) {formlang.tree};
+  \node[mod] (dfa) at (0,-1.1) {formlang.dfa/nfa/fst/pda/cfg};
+  \node[mod] (tur) at (0,-2.2) {formlang.turing $\to$ utm};
+  \node[app] (morpho) at (-4,0.6) {apps/morpho};
+  \node[app] (shield) at (-4,-0.4) {apps/shield};
+  \node[app] (hash) at (-4,-1.4) {apps/hashcons};
+  \node[app] (mtu) at (-4,-2.4) {apps/mtu};
+  \node[app] (pipe) at (4,-1.1) {pipeline.py};
+  \draw[fl] (morpho)--(tree); \draw[fl] (shield)--(tree); \draw[fl] (hash)--(tree);
+  \draw[fl] (shield)--(dfa); \draw[fl] (mtu)--(tur);
+  \draw[fl] (pipe)-- (morpho); \draw[fl] (pipe)-- (shield);
+\end{tikzpicture}
+\end{center}
+\begin{description}[leftmargin=1.4em,style=nextline,font=\normalfont\ttfamily]
+  \item[apps/morpho] morphologie — automate d'arbres (BUTA).
+  \item[apps/shield] AttackDecomposer — automate d'arbres, 100\,\% structurel.
+  \item[apps/hashcons] partage de structure (DAG) sur \texttt{formlang.tree.Term}.
+  \item[apps/mtu] machine universelle $U$ + calculatrice unaire \emph{exécutée par} $U$.
+\end{description}
+
+\begin{ethique}
+Le volet Shield porte \textbf{exclusivement} sur la \textbf{structure formelle} d'un
+système de \emph{défense}. Tous les « prompts » sont des suites de \textbf{jetons
+abstraits} ($a,o,r,e,[,],(,)$). \textbf{Aucune attaque réelle, aucun contenu sensible.}
+Tout rendu contenant un exemple d'attaque réelle est hors-sujet et pénalisé.
+\end{ethique}
+
+\begin{gate}
+\textbullet\ \emph{Anti-copier-coller} : une app qui \textbf{redéfinit} un automate au
+lieu de l'instancier perd les points d'intégration de la journée.\\
+\textbullet\ \emph{Honnêteté intellectuelle} : toute borne de complexité doit être
+\textbf{démontrée ou référencée} (jamais « de mémoire »). Reportez vos \textbf{vrais}
+chiffres de sortie.
+\end{gate}
+
+\subsection{Pré-requis}
+Langages formels ; expressions régulières ; grammaires ; automates finis (AFD/AFN) ;
+déterminisation ; minimisation ; notions de calculabilité. Le projet \textbf{introduit}
+les automates d'arbres (comme généralisation des automates finis) et la machine
+universelle (comme aboutissement).
+
+\subsection{Organisation de la semaine \& barème global}
+\begin{center}\small
+\begin{tabular}{@{}cllr@{}}
+\toprule
+Jour & Thème & Tests cibles & Pts \\\midrule
+1 & Régulier \& transducteurs & \texttt{test\_regular} & 4 \\
+2 & Hors-contexte (pompage, CFG, PDA) & \texttt{test\_cfg\_nerode}, \texttt{test\_regular} & 4 \\
+3 & \textbf{Arbres} + hash-consing & \texttt{test\_tree}, \texttt{test\_hashcons} & 5 \\
+4 & Calculabilité (MT, MTU, calculatrice) & \texttt{test\_turing}, \texttt{test\_calc} & 4 \\
+5 & Intégration \& Myhill--Nerode & \texttt{test\_pipeline}, \texttt{test\_cfg\_nerode} & 3 \\\midrule
+\multicolumn{3}{@{}l}{\textbf{Total}} & \textbf{20} \\
+\multicolumn{3}{@{}l}{Bonus (Thompson, CYK, minimisation BUTA, infixation, binaire)} & +6 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Méthode de travail (à lire avant de commencer)}
+\textbullet\ Lancez \texttt{pytest -q} \textbf{immédiatement} : vous verrez $N$ échecs
+(\texttt{NotImplementedError}). C'est normal.\\
+\textbullet\ Chaque \texttt{\# TODO (Ex.)} du code renvoie à une question \textbf{E\dots}
+d'une fiche-jour. Un exercice est \textbf{validé} quand son test passe au vert.\\
+\textbullet\ Travaillez \emph{étage par étage} : ne passez au jour suivant que lorsque les
+tests du jour courant sont verts.\\
+\textbullet\ Le rapport se rédige \emph{en même temps} que le code (traces, preuves,
+mesures), pas à la fin.
+
+\subsection{Livrables}
+\textbf{1.} Dépôt Git \texttt{NOM1\_NOM2\_formlang/} : \texttt{formlang/}, \texttt{apps/},
+\texttt{pipeline.py}, \texttt{tests/} complétés et \textbf{qui passent} ; joindre
+\texttt{pytest -q > out\_tests.txt} et \texttt{python pipeline.py > out\_demo.txt}.\\
+\textbf{2.} Rapport PDF (gabarit \texttt{RAPPORT\_TEMPLATE.md}).\\
+\textbf{3.} Soutenance (10 min) : démonstration bout-en-bout + un cas par étage.
+
+\clearpage
+% ===================== JOUR 1 =====================
+\section{Jour 1 — Étage régulier : automates finis \& transducteurs}
+\emph{Modules : \texttt{formlang/dfa.py}, \texttt{nfa.py}, \texttt{fst.py} — Apps :
+\texttt{apps/shield/detector.py}, \texttt{normalizer.py} — Tests : \texttt{test\_regular.py}
+— Barème : 4 pts (+1).}
+
+\begin{ethique}Alphabet abstrait $\{a,o,r\}$ (+ chiffres \emph{leet}). Aucun contenu réel.\end{ethique}
+
+\subsection{Contexte}
+Le premier réflexe d'un détecteur est de repérer un \textbf{motif} : « le mot contient le
+facteur \texttt{or} », un langage \textbf{régulier}. Avant de détecter, on
+\textbf{normalise} (défaire le \emph{leetspeak} $4\!\to\!a$, $0\!\to\!o$, \dots) : une
+relation \textbf{rationnelle} réalisée par un \textbf{transducteur fini}. On établit dès
+ce jour la première \emph{limite due à la mémoire} (le renversement), qui annonce tout le
+projet.
+
+\subsection{Notions nouvelles}
+\begin{objetformel}{l'automate fini}
+\champ{Intuition.} Une machine à états qui lit un mot lettre par lettre, sans autre
+mémoire que « où j'en suis » ; à la fin, elle répond \emph{oui} ou \emph{non}.
+
+\champ{Définition formelle.} Un AFD est $M=(Q,\Sigma,\delta,q_0,F)$ avec
+$\delta:Q\times\Sigma\to Q$ ; $M$ accepte $w$ si $\hat\delta(q_0,w)\in F$. Un langage est
+\textbf{régulier} s'il est reconnu par un tel automate (de façon équivalente : par un AFN,
+ou dénoté par une expression régulière).
+
+\champ{Classe de problèmes.} Les \textbf{problèmes de reconnaissance de mots} d'un langage
+régulier : décider l'appartenance $w\in L$. En pratique : recherche de motif, analyse
+lexicale, validation de formats simples, filtres.
+
+\champ{Dans le projet.} Décider « le mot contient le facteur \texttt{or} »
+(\texttt{SingularityDetector}) — un pur problème d'appartenance à un langage régulier.
+\end{objetformel}
+
+\begin{objetformel}{le transducteur fini}
+\champ{Intuition.} Un automate qui, en plus de lire, \emph{écrit} : il \textbf{traduit} un
+mot en un autre au fil de la lecture.
+
+\champ{Définition formelle.} Un transducteur séquentiel émet une sortie à chaque transition ;
+il réalise une \textbf{relation rationnelle} (ici une fonction).
+
+\champ{Classe de problèmes.} Les \textbf{transductions régulières} : normalisation,
+translittération, remplacement, nettoyage de surface.
+
+\champ{Dans le projet.} Normaliser le \emph{leetspeak} ($4\!\to\!a$, $0\!\to\!o$, \dots)
+avant la détection.
+\end{objetformel}
+
+\subsubsection{AFD et AFN}
+Un \textbf{AFD} lit un mot de gauche à droite ; dans chaque état, chaque lettre mène à
+\emph{un seul} état. Un \textbf{AFN} autorise \emph{plusieurs} transitions pour une même
+lettre : on accepte s'il \emph{existe} un chemin acceptant. L'AFN « contient \texttt{or} »
+est très naturel : on « devine » où commence le facteur.
+\begin{center}
+\begin{tikzpicture}[node distance=24mm, on grid]
+  \node[etat, initial, initial text={}] (q0) {$q_0$};
+  \node[etat, right=of q0] (q1) {$q_1$};
+  \node[etatfin, right=of q1, accepting] (q2) {$q_2$};
+  \path[fleche]
+    (q0) edge[loop above] node{$a,o,r$} (q0)
+    (q0) edge node[above]{$o$} (q1)
+    (q1) edge node[above]{$r$} (q2)
+    (q2) edge[loop above] node{$a,o,r$} (q2);
+\end{tikzpicture}
+\end{center}
+\noindent Non-déterminisme visible en $q_0$ : sur \texttt{o}, on peut \emph{rester} en
+$q_0$ \textbf{ou} \emph{aller} en $q_1$.
+
+\subsubsection{Déterminisation par construction des sous-ensembles}
+Un état de l'AFD = un \emph{ensemble} d'états de l'AFN. On part de $\{q_0\}$ et on ferme
+par transition :
+\begin{center}\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+état AFD & sur \texttt{o} & sur \texttt{a}, \texttt{r} & remarque\\\midrule
+$S_0=\{q_0\}$ & $\{q_0,q_1\}$ & $\{q_0\}$ & initial\\
+$S_1=\{q_0,q_1\}$ & $\{q_0,q_1\}$ & $\{q_0\}$/\,$\{q_0,q_2\}$ & \texttt o armé\\
+$S_2=\{q_0,q_2\}$ & $\{q_0,q_1,q_2\}$ & $\{q_0,q_2\}$ & \textbf{accepteur}\\
+\bottomrule
+\end{tabular}
+\end{center}
+Après renommage et minimisation, on retrouve \textbf{trois} états — l'AFD minimal :
+\begin{center}
+\begin{tikzpicture}[node distance=26mm, on grid]
+  \node[etat, initial, initial text={}] (A) {A};
+  \node[etat, right=of A] (B) {B};
+  \node[etatfin, right=of B, accepting] (C) {C};
+  \path[fleche]
+    (A) edge[loop above] node{$a,r$} (A)
+    (A) edge[bend left] node[above]{$o$} (B)
+    (B) edge[bend left] node[below]{$a$} (A)
+    (B) edge[loop above] node{$o$} (B)
+    (B) edge node[above]{$r$} (C)
+    (C) edge[loop above] node{$a,o,r$} (C);
+\end{tikzpicture}
+\end{center}
+\begin{exemple}[Trace de l'AFD sur \texttt{aor}]
+\begin{center}\small
+\begin{tabular}{@{}cccl@{}}
+\toprule pas & état & lit & transition\\\midrule
+0 & A & \texttt a & A $\xrightarrow{a}$ A\\
+1 & A & \texttt o & A $\xrightarrow{o}$ B\\
+2 & B & \texttt r & B $\xrightarrow{r}$ \textbf{C} (accepté)\\
+\bottomrule
+\end{tabular}
+\end{center}
+En \texttt B on est « armé » : un \texttt r immédiat bascule en \texttt C (absorbant) ;
+\texttt{aoa} retombe de \texttt B en \texttt A, rejeté.
+\end{exemple}
+
+\subsubsection{Minimisation (Moore)}
+Deux états sont \textbf{indistinguables} s'ils acceptent exactement les mêmes suffixes. On
+part de la partition finaux/non-finaux et on \textbf{raffine} tant que deux états d'un bloc
+mènent à des blocs différents. Le résultat (AFD minimal) est \textbf{unique} — lien direct
+avec Myhill--Nerode (jour~5).
+
+\subsubsection{Transducteur fini (FST) : normaliser le \emph{leet}}
+Un AFD \emph{reconnaît} ; un \textbf{transducteur} \emph{traduit} (chaque transition émet
+une sortie, notée $x\!:\!y$). Le normaliseur \emph{leet} tient en \textbf{un seul état}
+(identité sur les lettres non listées).
+\begin{center}
+\begin{tikzpicture}[node distance=24mm, on grid]
+  \node[etatfin, initial, initial text={}, accepting] (q) {$q_0$};
+  \path[fleche] (q) edge[loop right] node[align=left]
+     {$4\!:\!a\quad 0\!:\!o\quad 3\!:\!e$\\$1\!:\!i\quad 5\!:\!s\quad$(identité sinon)} (q);
+\end{tikzpicture}
+\end{center}
+\begin{exemple}[Idempotence]
+$T(\texttt{4or})=\texttt{aor}$, $T(\texttt{r0le})=\texttt{role}$. La sortie ne contient
+plus de chiffre \emph{leet}, donc $T(T(w))=T(w)$ : \textbf{idempotent}. La composition
+$T_2\circ T_1$ se lit sur les paires d'états (\texttt{compose}).
+\end{exemple}
+
+\subsubsection{Une limite déjà visible : one-way vs two-way}
+Le renversement $w\mapsto w^{R}$ est \textbf{impossible} en \textbf{one-way} : il faudrait
+mémoriser tout $w$ avant d'émettre la première lettre — impossible à mémoire bornée. Une
+tête \textbf{two-way} le permet. C'est le premier exemple concret de \emph{limite due à la
+mémoire} — thème qui culminera au jour~4.
+
+\subsection{A. Questions théoriques \normalfont(à rédiger) — 2 pts}
+On pose $\Sigma=\{a,o,r\}$ et $L_1=\{w \mid w \text{ contient le facteur } or\}$.
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[Q1.1 (0,5) — expression régulière.] Donner une regex dénotant \emph{exactement}
+    $L_1$. \emph{Livrable} : la regex + une phrase justifiant qu'elle capture tous les mots
+    contenant \texttt{or} et aucun autre.
+  \item[Q1.2 (1) — du non-déterminisme à l'AFD minimal.] Construire un AFN pour $L_1$, le
+    \textbf{déterminiser} (construction des sous-ensembles) puis le \textbf{minimiser}
+    (raffinement de Moore). \emph{Livrables} : (a) l'AFN dessiné ; (b) la \textbf{table
+    complète} des sous-ensembles atteints ; (c) la \textbf{suite des partitions} de
+    minimisation ; (d) l'AFD minimal dessiné + son nombre d'états.
+    \emph{Indication} : vous devez retrouver \textbf{3 états}.
+  \item[Q1.3 (0,5) — facteur vs sous-séquence.] Soit $L_1'=\{w\mid w$ contient un \texttt o
+    suivi, \emph{pas forcément immédiatement}, d'un \texttt r$\}$. Donner sa regex,
+    expliquer la différence avec $L_1$, et prouver l'inclusion $L_1\subseteq L_1'$.
+    \emph{Livrable} : regex + argument d'inclusion + un mot de $L_1'\setminus L_1$.
+\end{description}
+
+\subsection{B. Exercices de programmation — 2 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[E1.1 (0,75) — détecteur AFD.] Dans \texttt{apps/shield/detector.py}, compléter la
+    table $\delta$ de \texttt{\_DFA\_OR} (états \texttt{A},\texttt{B},\texttt{C}) et, dans
+    \texttt{formlang/dfa.py}, \texttt{DFA.run}/\texttt{DFA.accepts}. \emph{Contrainte} :
+    \texttt{contains\_or} passe \textbf{par l'AFD}, jamais par \texttt{"or" in w}.
+    \emph{Test} : \texttt{test\_detector\_or}.
+  \item[E1.2 (0,5) — minimisation.] \texttt{DFA.minimize} (raffinement de Moore ; utiliser
+    \texttt{\_completed()} fourni). \emph{Test} : \texttt{test\_minimisation\_3\_etats}.
+  \item[E1.3 (0,5) — déterminisation.] \texttt{NFA.to\_dfa} (sous-ensembles ;
+    \texttt{\_eps\_closure}/\texttt{\_move} fournis). \emph{Test} :
+    \texttt{test\_nfa\_to\_dfa\_equivalence}.
+  \item[E1.4 (0,25) — transducteur.] \texttt{leet\_fst} (un état final,
+    \texttt{identity\_on\_missing=True}) + \texttt{SequentialFST.transduce}. \emph{Tests} :
+    \texttt{test\_leet\_idempotent}, \texttt{test\_fst\_composition}.
+\end{description}
+
+\begin{notion}[Pièges fréquents]
+\textbullet\ Oublier que \texttt{DFA.run} doit renvoyer \texttt{None} si une transition
+manque (mot rejeté), pas lever d'exception.\\
+\textbullet\ Minimisation : ne pas compléter l'automate (états puits) avant de raffiner
+$\Rightarrow$ partitions fausses.\\
+\textbullet\ FST : émettre le caractère \emph{lu} plutôt que la \emph{sortie} sur les
+transitions listées.
+\end{notion}
+
+\begin{exemple}[Sortie de référence]\ttfamily
+\$ pytest -q tests/test\_regular.py\\ 7 passed
+\end{exemple}
+
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q1.1–Q1.3 & regex, AFN$\to$AFD$\to$min, facteur vs sous-séquence & 2\\
+E1.1 & détecteur AFD (\texttt{contains\_or}) & 0,75\\
+E1.2 & minimisation 3 états & 0,5\\
+E1.3 & déterminisation & 0,5\\
+E1.4 & FST leet + composition & 0,25\\
+\textbf{Bonus} & construction de Thompson (regex $\to$ AFN) & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{gate}\texttt{detector.py} \textbf{instancie} \texttt{formlang.dfa.DFA} ; pas de \texttt{"or" in w}.\end{gate}
+\clearpage
+% ===================== JOUR 2 =====================
+\section{Jour 2 — Étage hors-contexte : grammaires \& automate à pile}
+\emph{Modules : \texttt{formlang/pda.py}, \texttt{cfg.py} — App : \texttt{apps/shield/delimiters.py}
+— Tests : \texttt{test\_cfg\_nerode.py}, \texttt{test\_regular.py} — Barème : 4 pts (+1).}
+\begin{ethique}$\Sigma_3=\{a,o,r,[,],(,)\}$. Aucun contenu réel.\end{ethique}
+
+\subsection{Contexte}
+Les \textbf{faux délimiteurs} imitent un bloc \texttt{[\,\dots\,]} ou un cadre
+\texttt{(\,\dots\,)}, éventuellement imbriqués. Vérifier l'imbrication bien formée =
+reconnaître un langage de type \textbf{Dyck} : c'est \textbf{hors-contexte}, hors de portée
+d'un automate fini. Le nouvel ingrédient : la \textbf{pile}.
+
+\subsection{Notions nouvelles}
+\begin{objetformel}{la grammaire hors-contexte \& l'automate à pile}
+\champ{Intuition.} Une grammaire \emph{engendre} des structures imbriquées par réécriture ;
+l'automate à pile est un automate fini \textbf{muni d'une pile} pour se souvenir de la
+profondeur d'imbrication.
+
+\champ{Définition formelle.} Une CFG est $G=(N,\Sigma,R,S)$ ; un PDA ajoute une pile à un
+automate fini. Les deux décrivent la \textbf{même} classe : les langages \textbf{algébriques}
+(hors-contexte).
+
+\champ{Classe de problèmes.} La \textbf{reconnaissance et l'analyse syntaxique} de langages
+hors-contexte : équilibrage de parenthèses, expressions arithmétiques, structures
+récursives, \emph{parsing} de langages de programmation.
+
+\champ{Dans le projet.} Vérifier l'imbrication bien formée des délimiteurs \texttt{[\,]},
+\texttt{(\,)} — impossible pour un automate fini (jour~1), naturel pour une pile.
+\end{objetformel}
+
+\subsubsection{Le lemme de l'étoile (pompage)}
+Outil pour \textbf{prouver qu'un langage n'est pas régulier}. Si $L$ est régulier, il
+existe $p$ tel que tout mot long $w=xyz$ ($|xy|\le p$, $y\neq\varepsilon$) vérifie
+$xy^{i}z\in L$ pour tout $i$. Pour $D=\{[^{n}]^{n}\}$, prendre $w=[^{p}]^{p}$ : comme
+$|xy|\le p$, le bloc $y$ n'est fait que de \texttt{[}, donc $xy^{2}z=[^{p+k}]^{p}\notin D$.
+\begin{center}
+\begin{tikzpicture}[x=6.5mm]
+  \foreach \i in {0,...,3} {\node[draw=iutblue,thick,minimum size=6mm,font=\ttfamily] at (\i,0) {[};}
+  \foreach \i in {4,...,7} {\node[draw=iutblue,thick,minimum size=6mm,font=\ttfamily] at (\i,0) {]};}
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (-0.35,0.45) -- (1.35,0.45) node[midway,above=3pt,font=\scriptsize]{$x$};
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (1.65,0.45) -- (2.35,0.45) node[midway,above=3pt,font=\scriptsize]{$y=[^{k}$};
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (2.65,0.45) -- (7.35,0.45) node[midway,above=3pt,font=\scriptsize]{$z$};
+\end{tikzpicture}
+\end{center}
+Un automate fini a une mémoire \textbf{bornée} : il ne peut pas « compter » les ouvrantes.
+
+\subsubsection{Grammaire hors-contexte et arbre de dérivation}
+Une CFG engendre par \textbf{réécriture} :
+$S \to S\,S \mid [\,S\,] \mid (\,S\,) \mid a \mid o \mid r \mid \varepsilon.$
+L'arbre de dérivation montre \emph{comment} un mot est produit (\texttt{[a]} et \texttt{([])}) :
+\begin{center}
+\begin{tikzpicture}[level distance=10mm, sibling distance=9mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S} child { node[feuille] {[} } child { node {S} child { node[feuille] {a} } } child { node[feuille] {]} };
+\end{tikzpicture}\qquad\qquad
+\begin{tikzpicture}[level distance=10mm, sibling distance=9mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S} child { node[feuille] {(} }
+  child { node {S} child { node[feuille] {[} } child { node {S} child { node[feuille] {$\varepsilon$} } } child { node[feuille] {]} } }
+  child { node[feuille] {)} };
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Ambiguïté}
+Une grammaire est \textbf{ambiguë} si un mot admet plusieurs arbres. $S\to SS$ n'est pas
+associée : \texttt{aaa} a (au moins) deux arbres.
+\begin{center}
+\begin{tikzpicture}[level distance=9mm, sibling distance=8mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S} child { node {S} child { node[feuille]{a} } }
+  child { node {S} child { node {S} child { node[feuille]{a} } } child { node {S} child { node[feuille]{a} } } };
+\end{tikzpicture}\qquad\qquad
+\begin{tikzpicture}[level distance=9mm, sibling distance=8mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S} child { node {S} child { node {S} child { node[feuille]{a} } } child { node {S} child { node[feuille]{a} } } }
+  child { node {S} child { node[feuille]{a} } };
+\end{tikzpicture}
+\end{center}
+On désambiguïse par $S\to T\,S \mid T$ ; $T\to [\,S\,]\mid(\,S\,)\mid a\mid o\mid r\mid\varepsilon$.
+
+\subsubsection{La pile : mémoire non bornée mais disciplinée}
+La \textbf{pile} (LIFO) est \textbf{non bornée} mais accessible seulement au \textbf{sommet}.
+Évolution sur \texttt{[a(r)]} (on ignore \texttt a, \texttt r) : accepté car pile vide à la fin.
+\begin{center}
+\begin{tikzpicture}[pile/.style={draw=iutblue,thick,minimum width=8mm,minimum height=6mm,font=\ttfamily},
+    lab/.style={font=\scriptsize\color{iutgrey}}, x=17mm]
+  \node[pile,fill=iutblue!8] at (0,0) {[}; \node[lab] at (0,-0.55){lit \texttt{[}};
+  \node[pile,fill=iutblue!8] at (1,0) {[}; \node[pile,fill=iutorange!15] at (1,0.6) {(};
+  \node[lab] at (1,-0.55){lit \texttt{(}};
+  \node[pile,fill=iutblue!8] at (2,0) {[}; \node[lab] at (2,-0.55){lit \texttt{)} : dépile};
+  \node[draw=iutblue!40,dashed,minimum width=8mm,minimum height=6mm] at (3,0){};
+  \node[lab] at (3,-0.55){lit \texttt{]} : vide};
+  \node[iutorange!85!black,font=\small\bfseries] at (3.95,0){ACCEPTÉ};
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (0.35,0)--(0.65,0);
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (1.35,0)--(1.65,0);
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (2.35,0)--(2.65,0);
+\end{tikzpicture}
+\end{center}
+\begin{exemple}[Un rejet : \texttt{([)]}]
+On empile \texttt( puis \texttt[. Sur \texttt), le sommet est \texttt[ $\neq$ ouvrante
+attendue \texttt( $\Rightarrow$ \textbf{rejet}. L'imbrication « croisée » est mal formée :
+c'est la \emph{pile} qui l'attrape, pas un compteur.
+\end{exemple}
+
+\subsection{A. Questions théoriques \normalfont(à rédiger) — 2,5 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[Q2.1 (1,5) — non-régularité par pompage.] Montrer rigoureusement que
+    $D=\{[^{n}]^{n}\mid n\ge 0\}$ n'est pas régulier. \emph{Livrable} : la preuve complète
+    (choix de $w$, discussion de \emph{toute} découpe $xyz$ admissible, mot pompé hors de
+    $D$), puis la conclusion : le \texttt{SingularityDetector} (AFD) ne peut pas vérifier
+    l'imbrication.
+  \item[Q2.2 (0,5) — grammaire.] Donner une grammaire $G$ engendrant les prompts bien
+    parenthésés sur $\Sigma_3$ (\texttt a, \texttt o, \texttt r libres entre délimiteurs).
+    \emph{Livrable} : les règles + un exemple de dérivation.
+  \item[Q2.3 (0,5) — ambiguïté.] $G$ est-elle ambiguë ? Si oui, donner \textbf{deux} arbres
+    de dérivation de \texttt{aaa}, puis une grammaire \textbf{non ambiguë} équivalente.
+\end{description}
+
+\subsection{B. Exercices de programmation — 1,5 pt}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[E2.1 (1) — automate à pile.] \texttt{DelimiterPDA.accepts} \emph{avec une pile}
+    (liste) : empiler sur ouvrant, dépiler sur fermant si le sommet correspond, ignorer
+    \texttt{a,o,r,e}, accepter si pile vide. \emph{Test} : \texttt{test\_delimiters\_pda}.
+  \item[E2.2 (0,5) — génération bornée.] \texttt{CFG.generate(max\_len)} : énumérer les mots
+    \emph{terminaux} de longueur $\le$ \texttt{max\_len}. \emph{Test} :
+    \texttt{test\_cfg\_engendre\_des\_mots\_equilibres}.
+\end{description}
+\begin{notion}[Piège majeur de E2.2]
+Avec $S\to SS\mid\dots\mid\varepsilon$, des formes purement non-terminales (\texttt{S},
+\texttt{SS}, \texttt{SSS}, \dots) ont \textbf{0 terminal} et ne sont jamais élaguées par la
+seule borne sur les terminaux $\Rightarrow$ \textbf{explosion mémoire}. Il faut borner
+\textbf{aussi} le nombre de non-terminaux (p.\,ex.\ $\le 2\cdot\texttt{max\_len}+2$) ; cette
+borne ne retire aucun mot de longueur $\le$ \texttt{max\_len}.
+\end{notion}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q2.1 & pompage $\{[^{n}]^{n}\}$ & 1,5\\
+Q2.2 & grammaire bien parenthésée & 0,5\\
+Q2.3 & ambiguïté + désambiguïsation & 0,5\\
+E2.1 & PDA \texttt{well\_parenthesized} & 1\\
+E2.2 & génération bornée & 0,5\\
+\textbf{Bonus} & reconnaissance par \textbf{CYK} & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{gate}\texttt{delimiters.py} \textbf{instancie} \texttt{formlang.pda.DelimiterPDA}.\end{gate}
+\clearpage
+% ===================== JOUR 3 =====================
+\section{Jour 3 — Automates d'arbres (pivot) \& hash-consing}
+\emph{Module : \texttt{formlang/tree.py} — Apps : \texttt{apps/morpho}, \texttt{apps/shield},
+\texttt{apps/hashcons} — Tests : \texttt{test\_tree.py}, \texttt{test\_hashcons.py} —
+Barème : 5 pts (+2).}
+\begin{ethique}Volet Shield 100\,\% structurel : jetons abstraits, aucune attaque réelle.\end{ethique}
+
+\subsection{Contexte}
+C'est le \textbf{pivot} du projet. Une séquence plate \texttt{p p r s} ne dit pas
+\emph{comment} le mot est construit : la morphologie est \textbf{hiérarchique}, donc un
+\textbf{arbre}. On généralise l'automate fini : au lieu de suivre une \emph{chaîne}
+d'états, on \textbf{fusionne} les états des enfants d'un nœud. Deux applications très
+différentes (morphologie, pare-feu structurel) \emph{et} le hash-consing instancient le
+\textbf{même} \texttt{formlang.tree}.
+
+\subsection{Notions nouvelles}
+\begin{objetformel}{l'automate d'arbres}
+\champ{Intuition.} Un automate fini qui, au lieu de parcourir une \emph{ligne}, « lit un
+\textbf{arbre} » des feuilles vers la racine, et décide si sa \textbf{forme} est admissible.
+
+\champ{Définition formelle.} Un BUTA est $A=(Q,\Sigma,Q_f,\Delta)$ avec des règles
+$f(q_1,\dots,q_n)\to q$ ; il accepte si la racine reçoit un état de $Q_f$. Il reconnaît les
+\textbf{langages d'arbres réguliers} (généralisation directe des langages réguliers de mots :
+un mot est un arbre unaire).
+
+\champ{Classe de problèmes.} La \textbf{validation de structures hiérarchiques} : conformité
+de schémas XML/JSON, vérification d'arbres de syntaxe abstraite (AST), typage, filtrage
+d'arbres (\emph{tree matching}), \emph{model checking} d'arbres.
+
+\champ{Dans le projet.} Valider la structure \emph{morphologique} d'un mot (\texttt{morpho})
+\emph{et} décomposer/bloquer des structures dangereuses (\texttt{shield}) — deux applications
+d'un \textbf{même} automate d'arbres.
+\end{objetformel}
+
+\begin{objetformel}{le hash-consing (partage de structure)}
+\champ{Intuition.} Ne ranger chaque sous-arbre distinct \textbf{qu'une seule fois} et
+partager les copies : l'arbre devient un graphe orienté acyclique (\textbf{DAG}).
+
+\champ{Définition formelle.} Une fonction d'\emph{internement} injective (terme $\mapsto$
+identifiant) via une table canonique, garantissant un \textbf{partage maximal} et l'égalité
+structurelle en $O(1)$.
+
+\champ{Classe de problèmes.} La \textbf{représentation compacte} et la comparaison rapide de
+structures : dictionnaires morphologiques minimaux, diagrammes de décision (BDD), partage de
+sous-expressions en compilation.
+
+\champ{Dans le projet.} Mesurer le partage et le \textbf{taux de compression} des arbres
+morphologiques d'un vocabulaire.
+\end{objetformel}
+
+\subsubsection{Alphabet classé, termes, et automate d'arbres ascendant (BUTA)}
+Chaque symbole a une \textbf{arité}. Un \textbf{BUTA} est $A=(Q,\Sigma,Q_f,\Delta)$ avec
+des règles $f(q_1,\dots,q_n)\to q$. On accepte si la \textbf{racine} reçoit un état de $Q_f$.
+\begin{notion}[L'AFD généralisé]
+Un AFD lit un mot de gauche à droite : cas « tout en arité~1 » (chaîne). Le BUTA part des
+\textbf{feuilles} et \textbf{remonte} : à un nœud, il \emph{combine} les états des enfants.
+\textbullet\ Code : \texttt{TreeAutomaton.run} (post-ordre ; \texttt{REJECT} si un enfant
+rejette ou si aucune règle).
+\end{notion}
+
+\subsubsection{Exécution ascendante — exemple morphologique}
+Mot circonfixé \texttt{a-na-pend-a} : l'état de chaque nœud (\textcolor{iutorange!85!black}{orange})
+est calculé de bas en haut ; racine \textcolor{iutorange!85!black}{\texttt{WORD}}$\in Q_f$
+$\Rightarrow$ accepté (classe \textsc{circumfixed}).
+\begin{center}
+\begin{tikzpicture}[level distance=14mm,
+  level 1/.style={sibling distance=50mm}, level 2/.style={sibling distance=25mm},
+  level 3/.style={sibling distance=21mm}, every node/.style={noeud, align=center},
+  edge from parent/.style={draw=iutblue!70, thick}]
+\node {word\\{\scriptsize\bfseries\color{iutorange!85!black}WORD}}
+  child { node {prefixes\\{\scriptsize\bfseries\color{iutorange!85!black}PREFS}}
+    child { node[feuille] {prefix\,\texttt{a}\\{\scriptsize\bfseries\color{iutorange!85!black}PRE}} }
+    child { node {prefixes\\{\scriptsize\bfseries\color{iutorange!85!black}PREFS}}
+      child { node[feuille] {prefix\,\texttt{na}\\{\scriptsize\bfseries\color{iutorange!85!black}PRE}} }
+      child { node[feuille] {nil\\{\scriptsize\bfseries\color{iutorange!85!black}NIL}} } } }
+  child { node {rest\\{\scriptsize\bfseries\color{iutorange!85!black}REST}}
+    child { node[feuille] {root\,\texttt{pend}\\{\scriptsize\bfseries\color{iutorange!85!black}ROOT}} }
+    child { node {suffixes\\{\scriptsize\bfseries\color{iutorange!85!black}SUFS}}
+      child { node[feuille] {suffix\,\texttt{a}\\{\scriptsize\bfseries\color{iutorange!85!black}SUF}} }
+      child { node[feuille] {nil\\{\scriptsize\bfseries\color{iutorange!85!black}NIL}} } } };
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Pourquoi un AFD \emph{de mots} échoue : la frontière ne suffit pas}
+La \textbf{frontière} (yield) ne détermine pas la structure. Les deux arbres ci-dessous ont
+la \textbf{même} frontière \texttt{na pend} mais des classes différentes ; un AFD, qui ne
+lit que la frontière, est \textbf{aveugle} à la différence.
+\begin{center}
+\begin{tikzpicture}[level distance=11mm, sibling distance=15mm,
+  every node/.style={noeud, align=center, font=\scriptsize, inner sep=2pt},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {word} child { node {prefixes} child { node[feuille] {prefix \texttt{na}} } }
+  child { node {rest} child { node[feuille] {root \texttt{pend}} } };
+\end{tikzpicture}\hspace{3mm}{\small\itshape(PREFIXED)}\qquad
+\begin{tikzpicture}[level distance=11mm, sibling distance=15mm,
+  every node/.style={noeud, align=center, font=\scriptsize, inner sep=2pt},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {word} child { node {rest} child { node[feuille] {root \texttt{na}} }
+    child { node {suffixes} child { node[feuille] {suffix \texttt{pend}} } } };
+\end{tikzpicture}\hspace{3mm}{\small\itshape(SUFFIXED)}
+\end{center}
+\begin{notion}[Théorème du yield — pont vers le jour 1]
+La frontière d'un mot morphologique accepté est exactement $p^{*}\,r\,s^{*}$, le langage
+\textbf{régulier} du jour~1 ; réciproquement, l'ensemble des frontières d'un automate
+d'arbres régulier est \textbf{hors-contexte}. Déterminisme $\Rightarrow$ exécution unique,
+coût $O(n)$.
+\end{notion}
+
+\subsubsection{Le même moteur pour le Shield (100\,\% structurel)}
+\texttt{sys(seq(txt, frame(role)))} remonte à \textbf{DANGER}$\in Q_f$ $\Rightarrow$ bloqué.
+Que de la \emph{forme}.
+\begin{center}
+\begin{tikzpicture}[level distance=13mm,
+  level 1/.style={sibling distance=44mm}, level 2/.style={sibling distance=22mm},
+  every node/.style={noeud, align=center, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}]
+\node {sys\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+  child { node {seq\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+    child { node[feuille] {txt\\{\scriptsize\bfseries\color{iutorange!85!black}SAFE}} }
+    child { node {frame\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+      child { node[feuille] {role\\{\scriptsize\bfseries\color{iutorange!85!black}ROLE}} } } };
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Clôture par intersection (produit) et hash-consing (DAG)}
+Clôture par \textbf{intersection} : $A_1\times A_2$ a pour états des \emph{paires}, règles
+composante par composante. Le \textbf{hash-consing} donne à chaque sous-arbre distinct un
+\textbf{id unique} : sous-arbres identiques \textbf{partagés}, l'arbre devient un \textbf{DAG}.
+\begin{center}
+\begin{tikzpicture}[every node/.style={noeud, font=\scriptsize, inner sep=2pt},
+   fl/.style={-{Stealth[length=1.6mm]}, thick, draw=iutblue!70}]
+  \node (w1) at (0,0) {word 1}; \node (w2) at (3.4,0) {word 2};
+  \node[feuille] (root1) at (-0.9,-1.2) {root \texttt{struct}};
+  \node[feuille] (pre) at (2.4,-1.2) {prefix \texttt{re}};
+  \node[noeud, fill=iutorange!15, draw=iutorange!85!black] (shared) at (1.7,-2.4) {suffixes(\texttt{ation}, nil)};
+  \draw[fl] (w1)--(root1); \draw[fl] (w2)--(pre); \draw[fl] (w1)--(shared); \draw[fl] (w2)--(shared);
+  \node[font=\scriptsize\itshape, text=iutgrey, text width=44mm] at (7.0,-1.2)
+    {Le sous-arbre \texttt{-ation} n'est stocké \textbf{qu'une fois}. round-trip :
+     \texttt{get(intern(t))==t} ; compression $1-\text{uniques}/\text{total}$.};
+\end{tikzpicture}
+\end{center}
+
+\subsection{A. Questions théoriques \normalfont(à rédiger) — 2 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[Q3.1 (0,5) — déterminisme \& coût.] Montrer que \texttt{morpho\_automaton} et
+    \texttt{shield\_automaton} sont déterministes (au plus une règle par
+    $(\text{symbole},\text{états enfants})$). \emph{Livrable} : l'argument + la conséquence
+    (unicité de l'exécution, coût $O(n)$).
+  \item[Q3.2 (0,5) — la frontière ne suffit pas.] Donner deux arbres de \textbf{même
+    frontière} et de classes différentes, et expliquer pourquoi un AFD de mots ne peut les
+    distinguer.
+  \item[Q3.3 (0,5) — théorème du yield.] Montrer que la frontière d'un mot morphologique
+    accepté est $p^{*}r s^{*}$, et faire le lien explicite avec le langage régulier du jour~1.
+  \item[Q3.4 (0,5) — réduplication.] La réduplication (copie d'une partie de la racine)
+    engendre-t-elle un langage d'arbres \emph{régulier} ? Argumenter via $\{ww\}$ (non
+    régulier). \emph{Indice réel} : Culy 1985 — le bambara sort du hors-contexte.
+\end{description}
+
+\subsection{B. Exercices de programmation — 3 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[E3.1 (1) — moteur BUTA.] \texttt{TreeAutomaton.run} (post-ordre ; \texttt{REJECT} si
+    enfant rejeté ou règle absente) + \texttt{accepts}. \emph{Débloque tout
+    \texttt{test\_tree.py}.}
+  \item[E3.2 (0,5) — automate morphologique.] Règles $\Delta$ de \texttt{morpho\_automaton}
+    (feuilles \texttt{prefix/root/suffix/nil} ; chaînes ; \texttt{rest}, \texttt{word}).
+    \emph{Tests} : \texttt{test\_morpho\_accept\_et\_classes}, \texttt{test\_morpho\_rejet}.
+  \item[E3.3 (0,5) — AttackDecomposer.] \texttt{\_seq} (DANGER si l'un est DANGER ou si
+    $\{$OVR,ROLE$\}$, sinon sévérité max) + \texttt{shield\_automaton}. \emph{Test} :
+    \texttt{test\_shield\_blocage}.
+  \item[E3.4 (0,5) — produit.] \texttt{product(A1,A2)} : $L=L(A_1)\cap L(A_2)$ (états
+    = paires, règles composante par composante). \emph{Test} : \texttt{test\_produit\_intersection}.
+  \item[E3.5 (0,5) — hash-consing.] \texttt{CompactStore.intern} (partage) + \texttt{get}
+    (round-trip). \emph{Tests} : \texttt{test\_round\_trip\_exact},
+    \texttt{test\_sous\_arbres\_identiques\_partages}, \texttt{test\_compression\_positive}.
+\end{description}
+\textbf{Q3.5 (rapport)} : $\text{compression}=1-\text{uniques}/\text{total}$ ; discuter pour
+quelle famille de langues (anglais isolant vs turc/finnois agglutinants) le partage est le
+plus élevé. Reportez vos \textbf{vrais} chiffres.
+
+\textbf{E3.6 (bonus) — P4.5 : « dangereux \emph{et} doublement encodé ».} Construire \texttt{enc\_automaton} (compte les feuilles \texttt{enc}, plafonné à 2, final $=\{2\}$, même signature), puis \texttt{dangerous\_and\_double\_encoded = product(shield\_automaton(), enc\_automaton())}. On bloque \emph{ssi} l'arbre est dangereux \textbf{et} porte $\ge 2$ encodages : illustration directe de la \textbf{clôture par intersection}. \emph{Test} : \texttt{test\_shield\_double\_encodage\_P45}.
+
+\begin{notion}[Pièges fréquents]
+\textbullet\ \texttt{run} : oublier de propager \texttt{REJECT} dès qu'un enfant rejette.\\
+\textbullet\ \texttt{shield} : oublier une paire $(x,y)$ dans les règles \texttt{seq}
+(le produit cartésien des états).\\
+\textbullet\ \texttt{intern} : clé canonique incomplète (oublier \texttt{label}) $\Rightarrow$
+faux partage et round-trip cassé.
+\end{notion}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q3.1–Q3.4 & déterminisme, yield, réduplication & 2\\
+E3.1 & \texttt{run}/\texttt{accepts} du BUTA & 1\\
+E3.2 & automate morphologique + \texttt{classify} & 0,5\\
+E3.3 & AttackDecomposer & 0,5\\
+E3.4 & produit (intersection) & 0,5\\
+E3.5 & hash-consing (intern + round-trip) & 0,5\\
+\textbf{Bonus} & infixation ; minimisation BUTA ; P4.5 (produit $A\times A_{enc}$) & +3\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{gate}Les apps \textbf{instancient} \texttt{formlang.tree.TreeAutomaton}/\texttt{Term}.
+Toute réimplémentation perd les points d'intégration.\end{gate}
+\clearpage
+% ===================== JOUR 4 =====================
+\section{Jour 4 — Calculabilité : machine de Turing \& machine universelle}
+\emph{Modules : \texttt{formlang/turing.py}, \texttt{utm.py} — App : \texttt{apps/mtu} —
+Tests : \texttt{test\_turing.py}, \texttt{test\_calc.py} — Barème : 4 pts (+1).}
+
+\subsection{Contexte}
+On lève la dernière limite : une mémoire \textbf{libre}, lisible \emph{et} ré-inscriptible
+n'importe où — la machine de Turing. Puis l'idée vertigineuse : \textbf{une seule} machine
+peut simuler \textbf{toutes} les autres si on lui donne leur description. C'est la machine
+\textbf{universelle}, ancêtre du processeur et de l'interpréteur.
+
+\subsection{Notions nouvelles}
+\begin{objetformel}{la machine de Turing}
+\champ{Intuition.} Le modèle \textbf{ultime} : un ruban infini que l'on peut relire et
+réécrire librement. Il capture « tout ce qui est mécaniquement calculable ».
+
+\champ{Définition formelle.} $M=(Q,\Sigma,\Gamma,\delta,q_0,\text{\textvisiblespace},F)$ avec
+$\delta:Q\times\Gamma\to Q\times\Gamma\times\{L,R,S\}$. Elle reconnaît les langages
+\textbf{récursivement énumérables} et calcule les fonctions \textbf{calculables}.
+
+\champ{Classe de problèmes.} \textbf{Tous} les problèmes de calcul : décision (avec la
+frontière \emph{décidable}/\emph{indécidable}) et calcul de fonctions. C'est la limite du
+calculable (thèse de Church--Turing).
+
+\champ{Dans le projet.} Réaliser l'arithmétique unaire (\texttt{ADD}, \texttt{SUB}) comme de
+\textbf{vraies} tables de transition, exécutées pas à pas.
+\end{objetformel}
+
+\begin{objetformel}{la machine universelle}
+\champ{Intuition.} Une machine de Turing qui \textbf{lit la description d'une autre} machine
+et l'exécute : un \textbf{interpréteur}.
+
+\champ{Définition formelle.} $U(\langle M\rangle\,\#\#\,w)$ se comporte comme $M(w)$
+(principe du \emph{programme enregistré}).
+
+\champ{Classe de problèmes.} La \textbf{simulation universelle} — fondement de l'ordinateur
+programmable — et la \textbf{frontière de l'indécidabilité} (le problème de l'arrêt).
+
+\champ{Dans le projet.} Exécuter la calculatrice \textbf{par} $U$
+(\texttt{addition\_via\_utm}) : programme-donnée, pas de boucle de ruban réécrite.
+\end{objetformel}
+
+\subsubsection{La machine de Turing}
+$M=(Q,\Sigma,\Gamma,\delta,q_0,\text{\textvisiblespace},F)$ avec
+$\delta:Q\times\Gamma\to Q\times\Gamma\times\{L,R,S\}$. À chaque pas : « dans l'état $q$, je
+lis $a$ $\to$ j'écris $b$, je bouge de $d$, je passe en $q'$ ». Différence avec la pile : ici
+on peut \textbf{relire et réécrire} le passé.
+\begin{center}
+\begin{tikzpicture}[start chain=going right, node distance=0mm]
+  \foreach \c/\i in {\_/-1,1/0,1/1,+/2,1/3,\_/4,\_/5} {\node[tapecell, on chain] (c\i) {\c};}
+  \node[above=5mm of c0, iutorange!85!black] (tete) {\small\bfseries tête, état \texttt{q0}};
+  \draw[tapehead] (tete) -- (c0);
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{Une opération \emph{est} une machine : trace de \texttt{ADD} sur \texttt{11+1}}
+\begin{exemple}[\texttt{2+1 = 3}, pas à pas]
+\begin{center}\small\ttfamily
+\begin{tabular}{@{}clll@{}}
+\toprule \rmfamily pas & \rmfamily état & \rmfamily ruban & \rmfamily action\\\midrule
+0 & q0 & [1]1+1 & lit 1 $\to$ R\\
+1 & q0 & 1[1]+1 & lit 1 $\to$ R\\
+2 & q0 & 11[+]1 & \rmfamily le \texttt+ devient \texttt1, R, passe q1\\
+3 & q1 & 111[1] & lit 1 $\to$ R\\
+4 & q1 & 1111[\_] & \rmfamily blanc : demi-tour, q2\\
+5 & q2 & 111[1]\_ & \rmfamily efface le dernier 1, qf\\
+6 & qf & 111[\_] & \rmfamily \bfseries accepté ; 111 = 3\\
+\bottomrule
+\end{tabular}
+\end{center}
+\texttt+$\to$\texttt1 \emph{fusionne} les deux blocs, puis on retire \textbf{un} \texttt1.
+\end{exemple}
+
+\subsubsection{Lire une table par \emph{phases} : la soustraction}
+\texttt{SUB} apparie un \texttt1 de $m$ (marqué \texttt X) avec un \texttt1 de $n$ (barré,
+droite$\to$gauche), jusqu'à épuiser $m$, puis nettoie.
+\begin{center}
+\begin{tikzpicture}[node distance=20mm and 22mm, on grid]
+  \node[etat] (q0) {q0}; \node[etat, right=of q0] (q1) {q1};
+  \node[etat, right=of q1] (q2) {q2}; \node[etat, below=of q1] (q3) {q3};
+  \node[etat, right=22mm of q2] (q4) {q4}; \node[etatfin, right=of q4, accepting] (qf) {qf};
+  \path[fleche]
+    (q0) edge node[above]{\scriptsize \texttt{-} : R} (q1)
+    (q1) edge node[above]{\scriptsize \texttt{1$\to$X}, L} (q2)
+    (q2) edge[bend left=15] node[below,pos=.4]{\scriptsize \texttt{-} : L} (q3)
+    (q3) edge[bend left=15] node[above,pos=.6]{\scriptsize \texttt{1$\to$X}, R} (q0)
+    (q1) edge[bend left=20] node[above]{\scriptsize \texttt{\_} : $m$ épuisé} (q4)
+    (q4) edge node[above]{\scriptsize nettoie} (qf);
+\end{tikzpicture}
+\end{center}
+\textbf{Trois points délicats} (à expliquer au rapport) : \texttt{(q0,X)$\to$R} et
+\texttt{(q1,X)$\to$R} (gérer ses propres marques) ; barrage \textbf{droite$\to$gauche}
+(sortie contiguë) ; fin de $m$ par un \textbf{blanc} (le ruban compte, pas un compteur).
+
+\subsubsection{Codage $\langle M\rangle$ et machine universelle}
+Une MT n'est qu'une \textbf{table finie} : on l'écrit comme une \textbf{chaîne}
+$\langle M\rangle$ (\textbf{injective}, \textbf{décodable}). $U$ prend
+$\langle M\rangle\,\#\#\,w$ et \textbf{simule} $M$ (programme enregistré). Un cycle :
+\begin{center}
+\begin{tikzpicture}[noeudc/.style={draw=iutblue, very thick, rounded corners=3pt,
+    fill=iutblue!6, minimum height=8mm, inner xsep=5pt, font=\small\bfseries, text=iutblue},
+    fl/.style={-{Stealth[length=2mm]}, very thick, iutorange!85!black}]
+  \node[noeudc] (lire) {1. Lire le symbole simulé};
+  \node[noeudc, right=12mm of lire] (chercher) {2. Chercher dans $\langle M\rangle$};
+  \node[noeudc, below=8mm of chercher] (ecrire) {3. Écrire};
+  \node[noeudc, left=12mm of ecrire] (bouger) {4. Déplacer la tête};
+  \node[noeudc, below=8mm of lire] (maj) {5. Mettre à jour l'état};
+  \draw[fl] (lire)--(chercher); \draw[fl] (chercher)--(ecrire);
+  \draw[fl] (ecrire)--(bouger); \draw[fl] (bouger)--(maj); \draw[fl] (maj)--(lire);
+\end{tikzpicture}
+\end{center}
+\begin{notion}[Church--Turing, composition, limite]
+Thèse de Church--Turing : pas un théorème, étayée par l'équivalence de modèles
+($\lambda$-calcul, fonctions récursives, RAM). On obtient $\times,\div$ par
+\textbf{composition} de MT (ce que fait $U$). \emph{Revers} : \textsc{halt} est
+\textbf{indécidable} (Turing 1936) ; par réduction, l'arrêt de $U$ l'est aussi.
+\emph{Universel $\neq$ omniscient.}
+\end{notion}
+
+\subsection{A. Questions théoriques \normalfont(à rédiger) — 2 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[Q4.1 (0,5) — encodage.] Détailler $\langle M\rangle$ (numéroter états/symboles,
+    linéariser $\delta$ en quintuplets). \emph{Livrable} : le schéma + preuve d'injectivité
+    et de décodabilité.
+  \item[Q4.2 (0,5) — la machine universelle.] Décrire $U$, l'invariant maintenu sur le
+    ruban, et un cycle complet. \emph{Livrable} : l'invariant + l'argument de correction
+    (récurrence sur le nombre de pas).
+  \item[Q4.3 (0,5) — surcoût (\textbf{sourcé}).] Multi-ruban $O(t\cdot|\langle M\rangle|)$ ;
+    multi$\to$mono $\le$ quadratique ; citer Hennie--Stearns (ralentissement logarithmique).
+    \emph{Livrable} : les bornes \textbf{avec référence} (aucune constante « de mémoire »).
+  \item[Q4.4 (0,5) — indécidabilité.] Réduction depuis \textsc{halt} montrant que « $U$
+    s'arrête sur $\langle M\rangle\#\#w$ » est indécidable ; commenter « universel $\neq$
+    omniscient ».
+\end{description}
+
+\subsection{B. Exercices de programmation — 2 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[E4.1 (0,5) — MT générique.] \texttt{TuringMachine.run} (ruban \texttt{dict}, arrêt
+    sur état final / transition absente, option \texttt{trace}). \emph{Test} :
+    \texttt{test\_trace\_disponible}.
+  \item[E4.2 (0,5) — machine universelle.] \texttt{encode}/\texttt{decode} (réciproques
+    exactes) + \texttt{UniversalTM.run}. \emph{Tests} : \texttt{test\_round\_trip\_encodage},
+    \texttt{test\_utm\_simule\_comme\_la\_machine}.
+  \item[E4.3 (0,75) — calculatrice.] Tables \texttt{ADD}/\texttt{SUB} + \texttt{Calculatrice}
+    (\texttt+,\texttt- par les MT ; \texttt*,\texttt/ par composition ; \texttt{chainer}).
+    \emph{Tests} : \texttt{test\_add\_sub\_machines\_directes}, \texttt{test\_calculatrice\_exhaustif},
+    \texttt{test\_chainage}, \texttt{test\_division\_par\_zero}.
+  \item[E4.4 (0,25) — interpréteur universel.] \texttt{UniversalInterpreter.run(M,w)} qui
+    encode $M$ puis \textbf{délègue} à \texttt{UniversalTM} ; \texttt{addition\_via\_utm}.
+    \emph{Test} : \texttt{test\_interpreteur\_universel}.
+\end{description}
+\begin{notion}[Pièges fréquents]
+\textbullet\ \texttt{run} : ne pas garantir l'arrêt (prévoir \texttt{max\_steps} et lever
+en cas de boucle).\\
+\textbullet\ \texttt{SUB} : oublier \texttt{(q0,X)$\to$R}/\texttt{(q1,X)$\to$R} $\Rightarrow$
+blocage au 2\textsuperscript{e} tour.\\
+\textbullet\ \texttt{encode}/\texttt{decode} : sortie non triée $\Rightarrow$ round-trip
+non déterministe.
+\end{notion}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q4.1–Q4.4 & encodage, cycle $U$, surcoût \textbf{sourcé}, indécidabilité & 2\\
+E4.1 & MT générique & 0,5\\
+E4.2 & encode/decode + \texttt{UniversalTM} & 0,5\\
+E4.3 & calculatrice (tests exhaustifs) & 0,75\\
+E4.4 & interpréteur universel & 0,25\\
+\textbf{Bonus} & table \textbf{monolithique} de $\times$ validée par le simulateur & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{gate}\texttt{apps/mtu} ne réécrit aucune boucle de MT : il décrit des \textbf{tables}
+et les fait tourner via \texttt{formlang.turing}/\texttt{utm}. Surcoût \textbf{référencé}.\end{gate}
+\clearpage
+
+% ===================== JOUR 5 =====================
+\section{Jour 5 — Intégration \& Myhill--Nerode}
+\emph{Modules : \texttt{pipeline.py}, \texttt{formlang/myhill\_nerode.py} — Tests :
+\texttt{test\_pipeline.py}, \texttt{test\_cfg\_nerode.py} — Barème : 3 pts (+1).}
+
+\subsection{Contexte}
+Deux visages : \textbf{assembler} (les étages coopèrent dans un \texttt{pipeline}) et
+\textbf{boucler la boucle théorique} — revenir sur « combien d'états faut-il vraiment ? »
+avec la \textbf{congruence de Myhill--Nerode}.
+
+\subsection{Notions nouvelles}
+\begin{objetformel}{la congruence de Myhill--Nerode}
+\champ{Intuition.} Regrouper les mots qui « ont le même \textbf{avenir} » vis-à-vis du
+langage : une fois lus, ils mènent aux mêmes acceptations futures.
+
+\champ{Définition formelle.} $u\approx_{L}v$ ssi, pour tout suffixe $w$,
+$uw\in L\Leftrightarrow vw\in L$. C'est une équivalence \textbf{invariante à droite}, et
+$L$ est régulier \textbf{ssi} son \textbf{indice} (nombre de classes) est fini.
+
+\champ{Classe de problèmes.} La \textbf{caractérisation} des langages réguliers et la
+\textbf{minimisation} : l'indice égale le nombre d'états de l'AFD minimal ; identifier les
+états équivalents, c'est identifier les classes.
+
+\champ{Dans le projet.} Retrouver les \textbf{3 classes} de $L_1$ (= 3 états de l'AFD minimal
+du jour~1) et refermer ainsi le fil rouge théorique.
+\end{objetformel}
+
+\subsubsection{Intégration : deux chaînes, un même cœur}
+\begin{center}
+\begin{tikzpicture}[etape/.style={draw=iutblue,very thick,rounded corners=3pt,fill=iutblue!6,
+    minimum height=7mm,inner xsep=5pt,font=\footnotesize\bfseries,text=iutblue,align=center},
+    fl/.style={-{Stealth[length=2mm]},very thick,iutorange!85!black}, node distance=8mm]
+  \node[etape] (fst) {FST\\normalise}; \node[etape,right=of fst] (dfa) {AFD\\facteur \texttt{or}};
+  \node[etape,right=of dfa] (pda) {PDA\\délimiteurs};
+  \node[left=6mm of fst,font=\scriptsize\itshape,text=iutgrey] {\texttt{analyze\_word}};
+  \draw[fl] (fst)--(dfa); \draw[fl] (dfa)--(pda);
+  \node[etape,below=9mm of fst] (disc) {découverte\\affixes};
+  \node[etape,right=of disc] (seg) {segmentation}; \node[etape,right=of seg] (buta) {BUTA\\classify};
+  \node[left=6mm of disc,font=\scriptsize\itshape,text=iutgrey] {\texttt{analyze\_morpho}};
+  \draw[fl] (disc)--(seg); \draw[fl] (seg)--(buta);
+\end{tikzpicture}
+\end{center}
+
+\subsubsection{La congruence de Myhill--Nerode}
+$u\approx_{L}v$ si, \textbf{pour tout} suffixe $w$, $uw\in L\Leftrightarrow vw\in L$ :
+l'\emph{avenir} après $u$ ou $v$ est identique. Équivalence \textbf{invariante à droite}.
+\begin{notion}[Le théorème — le fil rouge se referme]
+$L$ est régulier \textbf{ssi} $\approx_{L}$ a un nombre \textbf{fini} de classes, et ce
+nombre (l'\textbf{indice}) est \textbf{exactement} le nombre d'états de l'AFD \textbf{minimal}.
+Minimiser (jour~1), c'était calculer ces classes.
+\end{notion}
+
+\subsubsection{En pratique : signatures sur suffixes témoins}
+Avec $S=\{\varepsilon, r, or\}$, la \textbf{signature} d'un mot est
+$\big(\mathbf 1[w s\in L_1]\big)_{s\in S}$ :
+\begin{exemple}[Trois signatures = trois classes]
+\begin{center}\small
+\begin{tabular}{@{}lccc>{\bfseries}c@{}}
+\toprule mot $w$ & $w\varepsilon$ & $wr$ & $wor$ & classe\\\midrule
+\texttt{""} & 0 & 0 & 1 & A\\ \texttt{a} & 0 & 0 & 1 & A\\
+\texttt{o} & 0 & 1 & 1 & B\\ \texttt{ao} & 0 & 1 & 1 & B\\
+\texttt{or} & 1 & 1 & 1 & C\\ \texttt{aor} & 1 & 1 & 1 & C\\
+\bottomrule
+\end{tabular}
+\end{center}
+Signatures $(0,0,1),(0,1,1),(1,1,1)$ : exactement \textbf{3 classes} $\Rightarrow$ 3 états.
+\end{exemple}
+\begin{center}
+\begin{tikzpicture}[classe/.style={draw=iutblue,very thick,rounded corners=4pt,fill=iutblue!5,
+    minimum width=33mm,minimum height=14mm,align=center,font=\small}]
+  \node[classe] (A) {\textbf{$C_A$}\\ \texttt{""},\ \texttt{a}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état A}};
+  \node[classe,right=8mm of A] (B) {\textbf{$C_B$}\\ \texttt{o},\ \texttt{ao}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état B}};
+  \node[classe,right=8mm of B] (C) {\textbf{$C_C$}\\ \texttt{or},\ \texttt{aor}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état C}};
+  \draw[-{Stealth[length=2mm]},thick,iutblue!70] (A)--node[above,font=\scriptsize]{$o$}(B);
+  \draw[-{Stealth[length=2mm]},thick,iutblue!70] (B)--node[above,font=\scriptsize]{$r$}(C);
+\end{tikzpicture}
+\end{center}
+
+\subsection{A. Questions théoriques \normalfont(à rédiger) — 1 pt}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[Q5.1 (0,5)] Énoncer Myhill--Nerode et relier le nombre de classes de $L_1$ au
+    nombre d'états de l'AFD minimal du jour~1. \emph{Livrable} : énoncé + le lien chiffré (3).
+  \item[Q5.2 (0,5)] Expliquer le critère « indistinguables par tous les suffixes témoins »
+    et son lien avec la \textbf{fusion d'états} à la minimisation.
+\end{description}
+
+\subsection{B. Exercices de programmation — 2 pts}
+\begin{description}[leftmargin=1.8em,style=nextline]
+  \item[E5.1 (1) — pipeline.] \texttt{analyze\_word} (FST$\to$AFD$\to$PDA) et
+    \texttt{analyze\_morpho} (\texttt{discover}$\to$\texttt{segment\_to\_tree}$\to$\texttt{classify}).
+    \emph{Tests} : \texttt{test\_pipeline\_word}, \texttt{test\_pipeline\_morpho}.
+  \item[E5.3 (1) — classes de Nerode.] \texttt{nerode\_classes(accepts, words, suffixes)} :
+    regrouper par signature \texttt{tuple(accepts(w+s) for s in suffixes)}. \emph{Test} :
+    \texttt{test\_nerode\_trois\_classes}.
+\end{description}
+\begin{exemple}[Sortie de référence]\ttfamily
+\$ pytest -q\\ 28 passed\\[2pt]
+\$ python pipeline.py --word 4or\\
+\hspace*{2em}normalisé(FST) : aor\quad facteur\_or(AFD) : True\quad délimiteurs\_ok(PDA) : True
+\end{exemple}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q5.1–Q5.2 & Myhill--Nerode + lien minimisation & 1\\
+E5.1 & pipeline (mot + morpho) & 1\\
+E5.3 & classes de Nerode & 1\\
+\textbf{Bonus} & mesure hash-consing sur 10\,000 mots & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{gate}Le pipeline \textbf{appelle les apps} (qui instancient le cœur) ; il ne
+reprogramme aucun automate.\end{gate}
+\clearpage
+
+% ===================== BIBLIOGRAPHIE =====================
+\section{Bibliographie (vérifiée)}
+Les références marquées \textbf{(libre)} sont disponibles gratuitement.
+
+\paragraph{Automates finis \& langages.} M.~Sipser, \emph{Introduction to the Theory of
+Computation}, 3\textsuperscript{e}~éd., Cengage, 2012. \textbullet\ J.~Hopcroft, R.~Motwani,
+J.~Ullman, \emph{Introduction to Automata Theory, Languages, and Computation},
+3\textsuperscript{e}~éd., Pearson, 2006.
+
+\paragraph{Automates d'arbres.} H.~Comon \emph{et al.}, \emph{Tree Automata Techniques and
+Applications (TATA)}, 2007 \textbf{(libre : \texttt{tata.gforge.inria.fr})}. \textbullet\
+F.~Gécseg, M.~Steinby, \emph{Tree Automata}, 1984 ; rééd.\ \textbf{(libre : arXiv:1509.06233,
+2015)}. \textbullet\ J.~W.~Thatcher, J.~B.~Wright, \emph{Math.\ Systems Theory} 2(1):57–81,
+1968 \emph{(fondateur)}. \textbullet\ J.~Doner, \emph{JCSS} 4(5):406–451, 1970.
+
+\paragraph{Applications des arbres.} M.~Murata \emph{et al.}, \emph{ACM TOIT} 5(4), 2005
+(schémas XML). \textbullet\ A.~V.~Aho, M.~Ganapathi, S.~Tjiang, \emph{ACM TOPLAS} 11(4),
+1989 (filtrage d'arbres). \textbullet\ A.~Bouajjani \emph{et al.}, \emph{ENTCS} 149(1), 2006.
+
+\paragraph{Morphologie computationnelle.} K.~Koskenniemi, \emph{Two-Level Morphology},
+Helsinki, 1983. \textbullet\ K.~R.~Beesley, L.~Karttunen, \emph{Finite State Morphology},
+CSLI, 2003. \textbullet\ Z.~S.~Harris, \emph{Language} 31(2):190–222, 1955. \textbullet\
+J.~Goldsmith, \emph{Computational Linguistics} 27(2):153–198, 2001. \textbullet\ E.~Roche,
+Y.~Schabes (dir.), \emph{Finite-State Language Processing}, MIT Press, 1997.
+
+\paragraph{Réduplication \& limites.} C.~Culy, « The complexity of the vocabulary of
+Bambara », \emph{Linguistics and Philosophy} 8:345–351, 1985. \textbullet\ B.~Roark,
+R.~Sproat, \emph{Computational Approaches to Morphology and Syntax}, Oxford, 2007.
+
+\paragraph{Hash-consing.} J.-C.~Filliâtre, S.~Conchon, « Type-safe modular hash-consing »,
+\emph{ML Workshop}, 2006. \textbullet\ J.~Daciuk \emph{et al.}, \emph{Computational
+Linguistics} 26(1), 2000.
+
+\paragraph{Calculabilité.} A.~M.~Turing, « On Computable Numbers\dots », \emph{Proc.\
+London Math.\ Soc.}, s2-42:230–265, 1936-37. \textbullet\ F.~C.~Hennie, R.~E.~Stearns,
+« Two-Tape Simulation of Multitape Turing Machines », \emph{J.\ ACM} 13(4):533–546, 1966.
+\textbullet\ S.~Arora, B.~Barak, \emph{Computational Complexity: A Modern Approach},
+Cambridge, 2009.
+
+\end{document}

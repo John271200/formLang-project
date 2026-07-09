@@ -1,0 +1,136 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Jour 5 — Intégration \& Myhill--Nerode}{}
+{Modules : \texttt{pipeline.py}, \texttt{myhill\_nerode.py} \quad$\bullet$\quad Barème : 3 pts (+1)}
+
+\section*{Contexte}
+Deux visages. \textbf{Assembler} : les étages, jusqu'ici isolés, \textbf{coopèrent} dans
+un \texttt{pipeline}. \textbf{Boucler la boucle théorique} : on revient sur la question
+du jour~1 — « combien d'états faut-il vraiment ? » — avec l'outil qui y répond
+exactement, la \textbf{congruence de Myhill--Nerode}.
+
+\section*{Notions nouvelles du jour}
+
+\subsection*{1. Intégration : deux chaînes, un même cœur}
+Le \texttt{pipeline} \textbf{appelle les apps}, qui \textbf{instancient} \texttt{formlang}.
+Deux chaînes de traitement :
+
+\begin{center}
+\begin{tikzpicture}[etape/.style={draw=iutblue,very thick,rounded corners=3pt,
+    fill=iutblue!6,minimum height=7mm,inner xsep=5pt,font=\footnotesize\bfseries,text=iutblue,align=center},
+    fl/.style={-{Stealth[length=2mm]},very thick,iutorange!85!black}, node distance=8mm]
+  % chaîne mot
+  \node[etape] (fst) {FST\\normalise};
+  \node[etape,right=of fst] (dfa) {AFD\\facteur \texttt{or}};
+  \node[etape,right=of dfa] (pda) {PDA\\délimiteurs};
+  \node[left=6mm of fst,font=\scriptsize\itshape,text=iutgrey] {\texttt{analyze\_word}};
+  \draw[fl] (fst)--(dfa); \draw[fl] (dfa)--(pda);
+  % chaîne morpho
+  \node[etape,below=9mm of fst] (disc) {découverte\\affixes};
+  \node[etape,right=of disc] (seg) {segmentation};
+  \node[etape,right=of seg] (buta) {BUTA\\classify};
+  \node[left=6mm of disc,font=\scriptsize\itshape,text=iutgrey] {\texttt{analyze\_morpho}};
+  \draw[fl] (disc)--(seg); \draw[fl] (seg)--(buta);
+\end{tikzpicture}
+\end{center}
+\noindent On évalue l'\textbf{architecture} (chaque étage instancie le cœur), pas un
+nouvel algorithme.
+
+\subsection*{2. La congruence de Myhill--Nerode}
+$u\approx_{L}v$ si, \textbf{pour tout} suffixe $w$, $uw\in L\Leftrightarrow vw\in L$ :
+une fois $u$ ou $v$ lu, l'\emph{avenir} (ce qu'on pourra encore accepter) est identique.
+Équivalence \textbf{invariante à droite} — d'où l'on fait les \textbf{états} d'un automate.
+
+\begin{notion}[Le théorème — le fil rouge se referme]
+$L$ est régulier \textbf{ssi} $\approx_{L}$ a un nombre \textbf{fini} de classes, et ce
+nombre (l'\textbf{indice}) est \textbf{exactement} le nombre d'états de l'AFD
+\textbf{minimal}. Minimiser (jour~1), c'était calculer ces classes.
+\end{notion}
+
+\subsection*{3. Le calcul en pratique : signatures sur suffixes témoins}
+On approxime « pour tout suffixe » par un \textbf{jeu fini} de suffixes distinctifs
+$S=\{\varepsilon,\,r,\,or\}$. La \textbf{signature} d'un mot est
+$\big(\mathbf{1}[w s\in L_1]\big)_{s\in S}$. Deux mots de même signature sont dans la même
+classe :
+
+\begin{exemple}[Trois signatures = trois classes]
+\begin{center}\small
+\begin{tabular}{@{}lccc>{\bfseries}c@{}}
+\toprule
+mot $w$ & $w\varepsilon$ & $wr$ & $wor$ & classe\\\midrule
+\texttt{""}  & 0 & 0 & 1 & A\\
+\texttt{a}   & 0 & 0 & 1 & A\\
+\texttt{o}   & 0 & 1 & 1 & B\\
+\texttt{ao}  & 0 & 1 & 1 & B\\
+\texttt{or}  & 1 & 1 & 1 & C\\
+\texttt{aor} & 1 & 1 & 1 & C\\
+\bottomrule
+\end{tabular}
+\end{center}
+(\texttt{1} = « contient \texttt{or} ».) Signatures $(0,0,1),(0,1,1),(1,1,1)$ : exactement
+\textbf{3 classes} $\Rightarrow$ 3 états de l'AFD minimal. \texttt{nerode\_classes} fait
+ce regroupement (test \texttt{test\_nerode\_trois\_classes}).
+\end{exemple}
+
+\begin{center}
+\begin{tikzpicture}[classe/.style={draw=iutblue,very thick,rounded corners=4pt,
+    fill=iutblue!5,minimum width=33mm,minimum height=14mm,align=center,font=\small}]
+  \node[classe] (A) {\textbf{$C_A$}\\ \texttt{""},\ \texttt{a}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état A}};
+  \node[classe,right=8mm of A] (B) {\textbf{$C_B$}\\ \texttt{o},\ \texttt{ao}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état B ($o$ armé)}};
+  \node[classe,right=8mm of B] (C) {\textbf{$C_C$}\\ \texttt{or},\ \texttt{aor}\\[-1pt]{\footnotesize\bfseries\color{iutorange!85!black}état C (absorbant)}};
+  \draw[-{Stealth[length=2mm]},thick,iutblue!70] (A) -- node[above,font=\scriptsize]{$o$} (B);
+  \draw[-{Stealth[length=2mm]},thick,iutblue!70] (B) -- node[above,font=\scriptsize]{$r$} (C);
+\end{tikzpicture}
+\end{center}
+
+\subsection*{4. Ouverture : Myhill--Nerode pour les arbres (bonus)}
+Deux sous-arbres sont équivalents s'ils donnent le même verdict \textbf{dans tout
+contexte} (arbre « à trou ») : fondement de la minimisation d'un BUTA, et lien direct
+avec le hash-consing du jour~3 (partager, c'est identifier des sous-structures équivalentes).
+
+\section*{A. Théorie \normalfont(à rédiger) — 1 pt}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[Q5.1 (0,5)] Énoncer Myhill--Nerode ; relier le nombre de classes de $L_1$ à
+    l'AFD minimal.
+  \item[Q5.2 (0,5)] Critère « indistinguables par tous les suffixes témoins » et lien
+    avec la fusion d'états.
+\end{description}
+
+\section*{B. Pratique — 2 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E5.1 (1)] \texttt{analyze\_word} (FST$\to$AFD$\to$PDA) et \texttt{analyze\_morpho}
+    (découverte$\to$segmentation$\to$BUTA). \emph{Tests pipeline.}
+  \item[E5.3 (1)] \texttt{nerode\_classes} : regrouper par signature de suffixes.
+    \emph{Test : \texttt{test\_nerode\_trois\_classes}.}
+\end{description}
+
+\begin{exemple}[Sortie de référence]
+\ttfamily \$ pytest -q\\ 28 passed\\[2pt]
+\$ python pipeline.py --word 4or\\
+\hspace*{2em}normalisé(FST) : aor\ \ facteur\_or(AFD) : True\ \ délimiteurs\_ok(PDA) : True
+\end{exemple}
+
+\section*{Mini-barème}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q5.1–Q5.2 & Myhill--Nerode + lien minimisation & 1\\
+E5.1 & pipeline (mot + morpho) & 1\\
+E5.3 & classes de Nerode & 1\\
+\textbf{Bonus} & mesure hash-consing sur 10\,000 mots & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{gate}
+Le pipeline \textbf{appelle les apps} (qui instancient le cœur) ; il ne reprogramme
+aucun automate.
+\end{gate}
+
+\subsection*{Références}
+Hopcroft, Motwani, Ullman — Myhill--Nerode, minimisation. \textbullet\ Comon \emph{et
+al.}, \emph{TATA} (2007) — congruence pour les arbres (bonus).
+
+\end{document}

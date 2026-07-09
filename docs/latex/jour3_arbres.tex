@@ -1,0 +1,187 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Jour 3 — Automates d'arbres (pivot) + hash-consing}{}
+{Module : \texttt{formlang/tree.py} \quad$\bullet$\quad Apps : \texttt{morpho}, \texttt{shield}, \texttt{hashcons} \quad$\bullet$\quad Barème : 5 pts (+2)}
+
+\begin{ethique}
+Volet Shield 100\,\% structurel : jetons abstraits, aucune attaque réelle.
+\end{ethique}
+
+\section*{Contexte}
+C'est le \textbf{pivot} du projet. Une séquence plate \texttt{p p r s} ne dit pas
+\emph{comment} le mot est construit : la morphologie est \textbf{hiérarchique}, donc un
+\textbf{arbre}. On généralise l'automate fini : au lieu de suivre une \emph{chaîne}
+d'états, on \textbf{fusionne} les états des enfants d'un nœud. Deux applications très
+différentes (morphologie, pare-feu structurel) et le hash-consing instancient le
+\textbf{même} \texttt{formlang.tree}.
+
+\section*{Notions nouvelles du jour}
+
+\subsection*{1. Alphabet classé, termes, et automate d'arbres ascendant (BUTA)}
+Chaque symbole a une \textbf{arité}. Un \textbf{BUTA} est $A=(Q,\Sigma,Q_f,\Delta)$ avec
+des règles $f(q_1,\dots,q_n)\to q$ : « si $f$ a ses enfants dans les états $q_1\dots q_n$,
+ce nœud reçoit $q$ ». On accepte si la \textbf{racine} reçoit un état de $Q_f$.
+
+\begin{notion}[L'AFD généralisé]
+Un AFD lit un mot de gauche à droite : c'est le cas « tout en arité 1 » (chaîne).
+Le BUTA part des \textbf{feuilles} et \textbf{remonte} : à un nœud, il \emph{combine}
+les états déjà calculés des enfants. \textbullet\ Code : \texttt{TreeAutomaton.run}
+(post-ordre ; \texttt{REJECT} si un enfant rejette ou si aucune règle).
+\end{notion}
+
+\subsection*{2. Exécution ascendante — exemple morphologique}
+Le mot circonfixé \texttt{a-na-pend-a} : l'état de chaque nœud (en
+\textcolor{iutorange!85!black}{orange}) est calculé de bas en haut ; la racine reçoit
+\textcolor{iutorange!85!black}{\texttt{WORD}} $\in Q_f$ $\Rightarrow$ \textbf{accepté}
+(classe \textsc{circumfixed}).
+
+\begin{center}
+\begin{tikzpicture}[level distance=14mm,
+  level 1/.style={sibling distance=50mm},
+  level 2/.style={sibling distance=25mm},
+  level 3/.style={sibling distance=21mm},
+  every node/.style={noeud, align=center},
+  edge from parent/.style={draw=iutblue!70, thick}]
+\node {word\\{\scriptsize\bfseries\color{iutorange!85!black}WORD}}
+  child { node {prefixes\\{\scriptsize\bfseries\color{iutorange!85!black}PREFS}}
+    child { node[feuille] {prefix\,\texttt{a}\\{\scriptsize\bfseries\color{iutorange!85!black}PRE}} }
+    child { node {prefixes\\{\scriptsize\bfseries\color{iutorange!85!black}PREFS}}
+      child { node[feuille] {prefix\,\texttt{na}\\{\scriptsize\bfseries\color{iutorange!85!black}PRE}} }
+      child { node[feuille] {nil\\{\scriptsize\bfseries\color{iutorange!85!black}NIL}} } } }
+  child { node {rest\\{\scriptsize\bfseries\color{iutorange!85!black}REST}}
+    child { node[feuille] {root\,\texttt{pend}\\{\scriptsize\bfseries\color{iutorange!85!black}ROOT}} }
+    child { node {suffixes\\{\scriptsize\bfseries\color{iutorange!85!black}SUFS}}
+      child { node[feuille] {suffix\,\texttt{a}\\{\scriptsize\bfseries\color{iutorange!85!black}SUF}} }
+      child { node[feuille] {nil\\{\scriptsize\bfseries\color{iutorange!85!black}NIL}} } } };
+\end{tikzpicture}
+\end{center}
+
+\subsection*{3. Pourquoi un AFD \emph{de mots} échoue : la frontière ne suffit pas}
+La \textbf{frontière} (yield, la suite des feuilles) ne détermine pas la structure.
+Les deux arbres ci-dessous ont la \textbf{même} frontière \texttt{na pend} mais des
+structures — et des classes — \emph{différentes}. Un AFD ne lit que la frontière : il
+est \textbf{aveugle} à cette différence.
+
+\begin{center}
+\begin{tikzpicture}[level distance=11mm, sibling distance=15mm,
+  every node/.style={noeud, align=center, font=\scriptsize, inner sep=2pt},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {word}
+  child { node {prefixes} child { node[feuille] {prefix \texttt{na}} } }
+  child { node {rest} child { node[feuille] {root \texttt{pend}} } };
+\end{tikzpicture}
+\hspace{4mm}{\small\itshape (PREFIXED)}\qquad
+\begin{tikzpicture}[level distance=11mm, sibling distance=15mm,
+  every node/.style={noeud, align=center, font=\scriptsize, inner sep=2pt},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {word}
+  child { node {rest}
+    child { node[feuille] {root \texttt{na}} }
+    child { node {suffixes} child { node[feuille] {suffix \texttt{pend}} } } };
+\end{tikzpicture}
+\hspace{4mm}{\small\itshape (SUFFIXED)}
+\end{center}
+
+\begin{notion}[Théorème du yield — le pont vers le jour 1]
+La frontière d'un mot morphologique accepté est exactement $p^{*}\,r\,s^{*}$, le
+\textbf{langage régulier} du jour~1. Réciproquement, l'ensemble des frontières d'un
+automate d'arbres régulier est \textbf{hors-contexte}. Pont \emph{arbres}$\leftrightarrow$\emph{mots}.
+Déterminisme $\Rightarrow$ exécution unique et coût $O(n)$.
+\end{notion}
+
+\subsection*{4. Le même moteur pour le Shield (100\,\% structurel)}
+\texttt{shield\_automaton} instancie le \emph{même} BUTA sur des jetons abstraits.
+Exemple : \texttt{sys(seq(txt, frame(role)))} remonte à \textbf{DANGER} $\in Q_f$ — donc
+\textbf{bloqué}. Aucun contenu réel n'intervient, seulement la \emph{forme}.
+
+\begin{center}
+\begin{tikzpicture}[level distance=13mm,
+  level 1/.style={sibling distance=44mm}, level 2/.style={sibling distance=22mm},
+  every node/.style={noeud, align=center, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}]
+\node {sys\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+  child { node {seq\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+    child { node[feuille] {txt\\{\scriptsize\bfseries\color{iutorange!85!black}SAFE}} }
+    child { node {frame\\{\scriptsize\bfseries\color{red!70!black}DANGER}}
+      child { node[feuille] {role\\{\scriptsize\bfseries\color{iutorange!85!black}ROLE}} } } };
+\end{tikzpicture}
+\end{center}
+\noindent Règles clés : \texttt{frame(x)$\to$SAFE si x=SAFE sinon DANGER} ; \texttt{seq}
+propage \texttt{DANGER} ; d'où la remontée \texttt{ROLE}$\to$\texttt{DANGER}$\to$\texttt{DANGER}.
+
+\subsection*{5. Clôture par intersection (produit) et hash-consing (DAG)}
+Les langages d'arbres réguliers sont clos par \textbf{intersection} : l'automate produit
+$A_1\times A_2$ a pour états des \emph{paires}, règles composante par composante
+(\texttt{formlang.tree.product}). Le \textbf{hash-consing} donne à chaque sous-arbre
+distinct un \textbf{id unique} : les sous-arbres identiques sont \textbf{partagés},
+l'arbre devient un \textbf{DAG}.
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={noeud, font=\scriptsize, inner sep=2pt},
+   fl/.style={-{Stealth[length=1.6mm]}, thick, draw=iutblue!70}]
+  \node (w1) at (0,0) {word 1};
+  \node (w2) at (3.4,0) {word 2};
+  \node[feuille] (root1) at (-0.9,-1.2) {root \texttt{struct}};
+  \node[feuille] (pre) at (2.4,-1.2) {prefix \texttt{re}};
+  \node[noeud, fill=iutorange!15, draw=iutorange!85!black] (shared) at (1.7,-2.4) {suffixes(\texttt{ation}, nil)};
+  \draw[fl] (w1)--(root1); \draw[fl] (w2)--(pre);
+  \draw[fl] (w1)-- (shared); \draw[fl] (w2)-- (shared);
+  \node[font=\scriptsize\itshape, text=iutgrey, text width=45mm] at (7.1,-1.2)
+    {Le sous-arbre \texttt{-ation} n'est stocké \textbf{qu'une fois} et pointé par les
+     deux mots. \\ round-trip : \texttt{get(intern(t))==t} ; compression
+     $1-\text{uniques}/\text{total}$.};
+\end{tikzpicture}
+\end{center}
+\noindent Plus une langue est \textbf{agglutinante} (turc, finnois), plus le partage
+suffixal est élevé (pendant « arbres » des dictionnaires minimaux, Daciuk \emph{et al.}~2000).
+
+\section*{A. Théorie \normalfont(à rédiger) — 2 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[Q3.1 (0,5)] Montrer le déterminisme de \texttt{morpho} et \texttt{shield} ;
+    conséquence (unicité, $O(n)$).
+  \item[Q3.2 (0,5)] Pourquoi un AFD de mots échoue ? Deux arbres de même frontière.
+  \item[Q3.3 (0,5)] Théorème du yield : frontière $p^{*}r s^{*}$ et lien au jour~1.
+  \item[Q3.4 (0,5)] Réduplication : langage d'arbres régulier ? Intuition via $\{ww\}$.
+    \emph{(Indice réel : Culy 1985 — le bambara sort du hors-contexte.)}
+\end{description}
+
+\section*{B. Pratique — 3 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E3.1 (1)] \texttt{TreeAutomaton.run}/\texttt{accepts}. \emph{Débloque \texttt{test\_tree.py}.}
+  \item[E3.2 (0,5)] \texttt{morpho\_automaton} (règles $\Delta$). \emph{Tests morpho.}
+  \item[E3.3 (0,5)] \texttt{\_seq} + \texttt{shield\_automaton}. \emph{Test \texttt{test\_shield\_blocage}.}
+  \item[E3.4 (0,5)] \texttt{product} : $L=L(A_1)\cap L(A_2)$. \emph{Test \texttt{test\_produit\_intersection}.}
+  \item[E3.5 (0,5)] \texttt{CompactStore.intern}/\texttt{get} (hash-consing). \emph{Tests \texttt{test\_hashcons}.}
+\end{description}
+\textbf{Q3.5 (rapport)} : $\text{compression}=1-\text{uniques}/\text{total}$ ; plus élevée
+pour les langues agglutinantes. Reportez vos \textbf{vrais} chiffres.
+
+\section*{Mini-barème}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q3.1–Q3.4 & déterminisme, yield, réduplication & 2\\
+E3.1 & \texttt{run}/\texttt{accepts} du BUTA & 1\\
+E3.2 & automate morphologique + \texttt{classify} & 0,5\\
+E3.3 & AttackDecomposer & 0,5\\
+E3.4 & produit (intersection) & 0,5\\
+E3.5 & hash-consing (intern + round-trip) & 0,5\\
+\textbf{Bonus} & infixation \texttt{s\guilsinglleft um\guilsinglright ulat} (étendre $\Delta$) & +1\\
+\textbf{Bonus} & minimisation d'un BUTA & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{gate}
+Les apps \textbf{instancient} \texttt{formlang.tree.TreeAutomaton} / \texttt{Term}.
+Toute réimplémentation d'un automate d'arbres perd les points d'intégration.
+\end{gate}
+
+\subsection*{Références}
+Comon \emph{et al.}, \emph{TATA} (2007, libre). \textbullet\ Gécseg \& Steinby (1984 ;
+rééd.~2015). \textbullet\ Thatcher \& Wright 1968 ; Doner 1970 \emph{(fondateurs)}.
+\textbullet\ Harris 1955, Goldsmith 2001 ; Culy 1985. \textbullet\ Filliâtre \& Conchon 2006.
+
+\end{document}

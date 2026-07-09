@@ -1,0 +1,177 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Jour 1 — Étage régulier}{Automates finis \& transducteurs}
+{Modules : \texttt{formlang/dfa.py}, \texttt{nfa.py}, \texttt{fst.py} \quad$\bullet$\quad Tests : \texttt{test\_regular.py} \quad$\bullet$\quad Barème : 4 pts (+1)}
+
+\begin{ethique}
+Alphabet abstrait $\{a,o,r\}$ (+ chiffres \emph{leet}). Aucun contenu réel.
+\end{ethique}
+
+\section*{Contexte}
+Le premier réflexe d'un détecteur est de repérer un \textbf{motif} : « le mot contient
+le facteur \texttt{or} » — un langage \textbf{régulier}. Avant de détecter, on
+\textbf{normalise} (défaire le \emph{leetspeak} $4\!\to\!a,\,0\!\to\!o,\dots$) : une
+relation \textbf{rationnelle} réalisée par un \textbf{transducteur fini}. Un mot
+$a_1\cdots a_n$ est un arbre dégénéré (branche unaire) ; l'automate fini est le cas
+« tout en arité 1 » du jour~3.
+
+\section*{Notions nouvelles du jour}
+
+\subsection*{1. AFD et AFN}
+Un \textbf{AFD} lit un mot de gauche à droite ; dans chaque état, chaque lettre mène à
+\emph{un seul} état. Un \textbf{AFN} autorise \emph{plusieurs} transitions pour une même
+lettre : on accepte s'il \emph{existe} un chemin acceptant. L'AFN pour « contient
+\texttt{or} » est très naturel — on « devine » où commence le facteur :
+
+\begin{center}
+\begin{tikzpicture}[node distance=24mm, on grid]
+  \node[etat, initial, initial text={}] (q0) {$q_0$};
+  \node[etat, right=of q0] (q1) {$q_1$};
+  \node[etatfin, right=of q1, accepting] (q2) {$q_2$};
+  \path[fleche]
+    (q0) edge[loop above] node{$a,o,r$} (q0)
+    (q0) edge node[above]{$o$} (q1)
+    (q1) edge node[above]{$r$} (q2)
+    (q2) edge[loop above] node{$a,o,r$} (q2);
+\end{tikzpicture}
+\end{center}
+\noindent Le \textbf{non-déterminisme} est visible en $q_0$ : sur \texttt{o}, on peut
+\emph{rester} en $q_0$ \textbf{ou} \emph{aller} en $q_1$.
+
+\subsection*{2. Déterminisation par construction des sous-ensembles}
+Un état de l'AFD = un \emph{ensemble} d'états de l'AFN (ceux où « on pourrait être »).
+On part de $\{q_0\}$ et on ferme par transition :
+
+\begin{center}\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+état AFD & sur \texttt{o} & sur \texttt{a},\texttt{r} & remarque\\\midrule
+$S_0=\{q_0\}$ & $\{q_0,q_1\}$ & $\{q_0\}$ & initial\\
+$S_1=\{q_0,q_1\}$ & $\{q_0,q_1\}$ & $\{q_0\}$ (sur \texttt a), $\{q_0,q_2\}$ (sur \texttt r) & \texttt o « armé »\\
+$S_2=\{q_0,q_2\}$ & $\{q_0,q_1,q_2\}$ & $\{q_0,q_2\}$ & \textbf{accepteur} ($q_2$)\\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent Après renommage et fusion des états équivalents (minimisation), on retrouve
+\textbf{trois} états — l'AFD minimal ci-dessous.
+
+\begin{center}
+\begin{tikzpicture}[node distance=26mm, on grid]
+  \node[etat, initial, initial text={}] (A) {A};
+  \node[etat, right=of A] (B) {B};
+  \node[etatfin, right=of B, accepting] (C) {C};
+  \path[fleche]
+    (A) edge[loop above] node{$a,r$} (A)
+    (A) edge[bend left] node[above]{$o$} (B)
+    (B) edge[bend left] node[below]{$a$} (A)
+    (B) edge[loop above] node{$o$} (B)
+    (B) edge node[above]{$r$} (C)
+    (C) edge[loop above] node{$a,o,r$} (C);
+\end{tikzpicture}
+\end{center}
+
+\begin{exemple}[Trace de l'AFD sur \texttt{aor}]
+\begin{center}\small
+\begin{tabular}{@{}cccl@{}}
+\toprule
+pas & état & lit & transition\\\midrule
+0 & A & \texttt a & A $\xrightarrow{a}$ A\\
+1 & A & \texttt o & A $\xrightarrow{o}$ B\\
+2 & B & \texttt r & B $\xrightarrow{r}$ \textbf{C}\\
+3 & C & — & C final $\Rightarrow$ \textbf{accepté}\\
+\bottomrule
+\end{tabular}
+\end{center}
+En \texttt{B}, on est « armé » : un \texttt r immédiat fait basculer en \texttt C
+(absorbant). \texttt{aoa} au contraire retombe de \texttt B en \texttt A : rejeté.
+\end{exemple}
+
+\begin{notion}[Minimisation (Moore)]
+Deux états sont \textbf{indistinguables} s'ils acceptent exactement les mêmes suffixes.
+La minimisation \textbf{fusionne} ces états : partition initiale finaux/non-finaux, puis
+\textbf{raffinement} tant que deux états d'un bloc mènent à des blocs différents. Le
+résultat (l'AFD minimal) est \textbf{unique}. \textbullet\ Code : \texttt{DFA.minimize} ;
+lien direct avec Myhill--Nerode (jour~5).
+\end{notion}
+
+\subsection*{3. Transducteur fini (FST) : normaliser le \emph{leet}}
+Un AFD \emph{reconnaît} ; un \textbf{transducteur} \emph{traduit} : chaque transition
+\emph{émet} une sortie ($x\!:\!y$ = « lit $x$, écrit $y$ »). Le normaliseur \emph{leet}
+tient en \textbf{un seul état} (identité sur les lettres non listées) :
+
+\begin{center}
+\begin{tikzpicture}[node distance=24mm, on grid]
+  \node[etatfin, initial, initial text={}, accepting] (q) {$q_0$};
+  \path[fleche]
+    (q) edge[loop right] node[align=left]{$4\!:\!a\quad 0\!:\!o\quad 3\!:\!e$\\$1\!:\!i\quad 5\!:\!s\quad$ (identité sinon)} (q);
+\end{tikzpicture}
+\end{center}
+
+\begin{exemple}[Transduction et idempotence]
+$T(\texttt{4or})=\texttt{aor}$ ; $T(\texttt{r0le})=\texttt{role}$. La sortie ne contient
+\textbf{plus} de chiffre \emph{leet}, donc $T(T(w))=T(w)$ : le transducteur est
+\textbf{idempotent} (test \texttt{test\_leet\_idempotent}). La \textbf{composition}
+$T_2\circ T_1$ se lit sur les paires d'états (fonction \texttt{compose}).
+\end{exemple}
+
+\subsection*{4. Une limite déjà visible : one-way vs two-way}
+Le renversement $w\mapsto w^{R}$ est \textbf{impossible} avec un transducteur
+\textbf{one-way} : il faudrait mémoriser tout $w$ avant d'émettre la première lettre de
+sortie — impossible à mémoire bornée (nombre fini d'états). Une tête \textbf{two-way}
+(qui revient en arrière) le permet. Premier exemple concret de \emph{limite due à la mémoire}
+— le fil rouge du projet, qui culminera au jour~4.
+
+\section*{A. Théorie \normalfont(à rédiger) — 2 pts}
+On pose $\Sigma=\{a,o,r\}$ et $L_1=\{w \mid w \text{ contient le facteur } or\}$.
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[Q1.1 (0,5)] Donner une expression régulière dénotant $L_1$.
+  \item[Q1.2 (1)] AFN pour $L_1$, \textbf{déterminiser} (table des sous-ensembles) puis
+    \textbf{minimiser} ; donner la table de l'AFD minimal, le dessiner, indiquer le
+    nombre d'états.
+  \item[Q1.3 (0,5)] $L_1'=\{w\mid w \text{ contient un } o \text{ suivi, pas
+    forcément immédiatement, d'un } r\}$ : regex, différence avec $L_1$, inclusion
+    $L_1\subseteq L_1'$.
+\end{description}
+
+\section*{B. Pratique — 2 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E1.1 (0,75)] \texttt{contains\_or} \emph{sous forme d'AFD} (table $\delta$, pas
+    l'opérateur \texttt{in}) + \texttt{DFA.run}/\texttt{accepts}. \emph{Test :
+    \texttt{test\_detector\_or}.}
+  \item[E1.2 (0,5)] \texttt{DFA.minimize}. \emph{Test : \texttt{test\_minimisation\_3\_etats}.}
+  \item[E1.3 (0,5)] \texttt{NFA.to\_dfa}. \emph{Test : \texttt{test\_nfa\_to\_dfa\_equivalence}.}
+  \item[E1.4 (0,25)] \texttt{leet\_fst} + \texttt{SequentialFST.transduce}. \emph{Tests :
+    \texttt{test\_leet\_idempotent}, \texttt{test\_fst\_composition}.}
+\end{description}
+
+\begin{exemple}[Sortie de référence]
+\ttfamily \$ pytest -q tests/test\_regular.py\\ 7 passed
+\end{exemple}
+
+\section*{Mini-barème}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q1.1–Q1.3 & regex, AFN$\to$AFD$\to$min, facteur vs sous-séquence & 2\\
+E1.1 & détecteur AFD (\texttt{contains\_or}) & 0,75\\
+E1.2 & minimisation 3 états & 0,5\\
+E1.3 & déterminisation & 0,5\\
+E1.4 & FST leet + composition & 0,25\\
+\textbf{Bonus} & construction de Thompson (regex $\to$ AFN) & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{gate}
+\texttt{detector.py} \textbf{instancie} \texttt{formlang.dfa.DFA} ; il ne teste pas
+\texttt{"or" in w}.
+\end{gate}
+
+\subsection*{Références}
+M.~Sipser, \emph{Introduction to the Theory of Computation}, 3\textsuperscript{e}~éd.,
+2012. \textbullet\ J.~Hopcroft, R.~Motwani, J.~Ullman, \emph{Introduction to Automata
+Theory\dots}, 3\textsuperscript{e}~éd., 2006.
+
+\end{document}

@@ -1,0 +1,173 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Jour 2 — Étage hors-contexte}{Grammaires \& automate à pile}
+{Modules : \texttt{pda.py}, \texttt{cfg.py} \quad$\bullet$\quad App : \texttt{shield/delimiters} \quad$\bullet$\quad Barème : 4 pts (+1)}
+
+\begin{ethique}
+$\Sigma_3=\{a,o,r,[,],(,)\}$. Aucun contenu réel.
+\end{ethique}
+
+\section*{Contexte}
+Les \textbf{faux délimiteurs} imitent un bloc \texttt{[\,\dots\,]} ou un cadre
+\texttt{(\,\dots\,)}, éventuellement imbriqués. Vérifier l'imbrication bien formée =
+reconnaître un langage de type \textbf{Dyck} : c'est \textbf{hors-contexte}, hors de
+portée d'un automate fini. Le nouvel ingrédient : la \textbf{pile}.
+
+\section*{Notions nouvelles du jour}
+
+\subsection*{1. Le lemme de l'étoile (pompage)}
+Outil pour \textbf{prouver qu'un langage n'est pas régulier}. Si $L$ est régulier, il
+existe $p$ tel que tout mot long se coupe $w=xyz$ ($|xy|\le p$, $y\neq\varepsilon$) avec
+$xy^{i}z\in L$ pour tout $i$. Pour $D=\{[^{n}]^{n}\}$, prendre $w=[^{p}]^{p}$ : comme
+$|xy|\le p$, le bloc $y$ n'est fait que de \texttt{[} ; alors $xy^{2}z=[^{p+k}]^{p}\notin D$.
+
+\begin{center}
+\begin{tikzpicture}[x=6.5mm]
+  \foreach \i in {0,...,3} {\node[draw=iutblue,thick,minimum size=6mm,font=\ttfamily] at (\i,0) {[};}
+  \foreach \i in {4,...,7} {\node[draw=iutblue,thick,minimum size=6mm,font=\ttfamily] at (\i,0) {]};}
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (-0.35,0.45) -- (1.35,0.45) node[midway,above=3pt,font=\scriptsize]{$x$};
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (1.65,0.45) -- (2.35,0.45) node[midway,above=3pt,font=\scriptsize]{$y=[^{k}$};
+  \draw[decorate,decoration={brace,amplitude=4pt},iutorange!85!black,thick]
+     (2.65,0.45) -- (7.35,0.45) node[midway,above=3pt,font=\scriptsize]{$z$};
+\end{tikzpicture}
+\end{center}
+\noindent Le déséquilibre casse l'appartenance : contradiction. Un automate fini a une
+mémoire \textbf{bornée}, il ne peut pas « compter » les ouvrantes.
+
+\subsection*{2. Grammaire hors-contexte et arbre de dérivation}
+Une CFG engendre par \textbf{réécriture}. Ici :
+$$S \to S\,S \mid [\,S\,] \mid (\,S\,) \mid a \mid o \mid r \mid \varepsilon.$$
+L'\textbf{arbre de dérivation} montre \emph{comment} un mot est produit. Exemple pour
+\texttt{[a]} (à gauche) et \texttt{([])} (à droite) :
+
+\begin{center}
+\begin{tikzpicture}[level distance=10mm, sibling distance=9mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S}
+  child { node[feuille] {[} }
+  child { node {S} child { node[feuille] {a} } }
+  child { node[feuille] {]} };
+\end{tikzpicture}
+\qquad\qquad
+\begin{tikzpicture}[level distance=10mm, sibling distance=9mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S}
+  child { node[feuille] {(} }
+  child { node {S}
+    child { node[feuille] {[} }
+    child { node {S} child { node[feuille] {$\varepsilon$} } }
+    child { node[feuille] {]} } }
+  child { node[feuille] {)} };
+\end{tikzpicture}
+\end{center}
+
+\subsection*{3. Ambiguïté}
+Une grammaire est \textbf{ambiguë} si un mot admet \emph{plusieurs} arbres de dérivation.
+La règle $S\to S\,S$ n'est pas associée : \texttt{aaa} a (au moins) \textbf{deux} arbres :
+
+\begin{center}
+\begin{tikzpicture}[level distance=9mm, sibling distance=8mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S}
+  child { node {S} child { node[feuille]{a} } }
+  child { node {S}
+    child { node {S} child { node[feuille]{a} } }
+    child { node {S} child { node[feuille]{a} } } };
+\end{tikzpicture}
+\qquad\qquad
+\begin{tikzpicture}[level distance=9mm, sibling distance=8mm,
+  every node/.style={noeud, align=center, inner sep=2pt, font=\footnotesize},
+  edge from parent/.style={draw=iutblue!70, thick}, baseline=(current bounding box.north)]
+\node {S}
+  child { node {S}
+    child { node {S} child { node[feuille]{a} } }
+    child { node {S} child { node[feuille]{a} } } }
+  child { node {S} child { node[feuille]{a} } };
+\end{tikzpicture}
+\end{center}
+\noindent On désambiguïse en imposant l'associativité : $S\to T\,S \mid T$ ;
+$T\to [\,S\,]\mid(\,S\,)\mid a\mid o\mid r\mid\varepsilon$.
+
+\subsection*{4. La pile : mémoire non bornée mais disciplinée}
+Contrairement à l'état fini d'un AFD, la \textbf{pile} (LIFO) est \textbf{non bornée},
+mais on n'y accède qu'au \textbf{sommet}. Elle suit la \textbf{profondeur d'imbrication}.
+Ci-dessous, l'évolution sur \texttt{[a(r)]} (on ignore \texttt{a},\texttt{r}) : accepté car
+pile \textbf{vide} à la fin.
+
+\begin{center}
+\begin{tikzpicture}[pile/.style={draw=iutblue,thick,minimum width=8mm,minimum height=6mm,font=\ttfamily},
+    lab/.style={font=\scriptsize\color{iutgrey}}, x=17mm]
+  \node[pile,fill=iutblue!8] at (0,0) {[}; \node[lab] at (0,-0.55){lit \texttt{[}};
+  \node[pile,fill=iutblue!8] at (1,0) {[}; \node[pile,fill=iutorange!15] at (1,0.6) {(};
+  \node[lab] at (1,-0.55){lit \texttt{(}};
+  \node[pile,fill=iutblue!8] at (2,0) {[}; \node[lab] at (2,-0.55){lit \texttt{)} : dépile};
+  \node[draw=iutblue!40,dashed,minimum width=8mm,minimum height=6mm] at (3,0){};
+  \node[lab] at (3,-0.55){lit \texttt{]} : vide};
+  \node[iutorange!85!black,font=\small\bfseries] at (3.95,0){ACCEPTÉ};
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (0.35,0)--(0.65,0);
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (1.35,0)--(1.65,0);
+  \draw[-{Stealth[length=2mm]},iutblue!70,thick] (2.35,0)--(2.65,0);
+\end{tikzpicture}
+\end{center}
+
+\begin{exemple}[Un rejet : \texttt{([)]}]
+On empile \texttt{(} puis \texttt{[}. Sur \texttt{)}, le sommet est \texttt{[}
+$\neq$ ouvrante attendue \texttt{(} $\Rightarrow$ \textbf{rejet immédiat}. L'imbrication
+« croisée » est mal formée : c'est bien la \emph{pile} (LIFO) qui l'attrape, pas un simple
+compteur. \textbullet\ \texttt{DelimiterPDA.accepts} (test \texttt{test\_delimiters\_pda}).
+\end{exemple}
+
+\begin{notion}[CFG $\leftrightarrow$ PDA, langage de Dyck]
+Grammaire (génère) et automate à pile (reconnaît) décrivent la \textbf{même} classe :
+les langages \textbf{algébriques}. Le langage de \textbf{Dyck} (parenthésages bien
+formés) est l'exemple canonique d'un langage hors-contexte \emph{non} régulier.
+\end{notion}
+
+\section*{A. Théorie \normalfont(à rédiger) — 2,5 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[Q2.1 (1,5)] Montrer par pompage que $D=\{[^{n}]^{n}\}$ n'est pas régulier ;
+    conclure que l'AFD ne peut vérifier l'imbrication.
+  \item[Q2.2 (0,5)] Grammaire $G$ des prompts bien parenthésés sur $\Sigma_3$.
+  \item[Q2.3 (0,5)] $G$ est-elle ambiguë ? Deux arbres pour \texttt{aaa} ; version non ambiguë.
+\end{description}
+
+\section*{B. Pratique — 1,5 pt}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E2.1 (1)] \texttt{well\_parenthesized} \emph{avec une pile} (\texttt{DelimiterPDA}).
+    \emph{Test : \texttt{test\_delimiters\_pda}.}
+  \item[E2.2 (0,5)] \texttt{CFG.generate(max\_len)}. \emph{Test : \texttt{test\_cfg\_engendre\_des\_mots\_equilibres}.}
+\end{description}
+\textbf{Piège} : avec $S\to SS\mid\dots\mid\varepsilon$, les formes purement
+non-terminales (\texttt{S,SS,SSS\dots}) ont 0 terminal et ne sont jamais élaguées par la
+seule borne sur les terminaux $\Rightarrow$ explosion. Borner \textbf{aussi} le nombre
+de non-terminaux (cf. corrigé).
+
+\section*{Mini-barème}
+\begin{center}\small
+\begin{tabular}{@{}llr@{}}
+\toprule Item & Détail & Pts\\\midrule
+Q2.1 & pompage $\{[^{n}]^{n}\}$ & 1,5\\
+Q2.2 & grammaire bien parenthésée & 0,5\\
+Q2.3 & ambiguïté + désambiguïsation & 0,5\\
+E2.1 & PDA \texttt{well\_parenthesized} & 1\\
+E2.2 & génération bornée & 0,5\\
+\textbf{Bonus} & reconnaissance par \textbf{CYK} & +1\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{gate}
+\texttt{delimiters.py} \textbf{instancie} \texttt{formlang.pda.DelimiterPDA}.
+\end{gate}
+
+\subsection*{Références}
+Hopcroft, Motwani, Ullman — lemme de l'étoile, CFG, PDA, ambiguïté ; langage de Dyck.
+
+\end{document}

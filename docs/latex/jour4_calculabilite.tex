@@ -1,0 +1,144 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Jour 4 — Calculabilité}{Machine de Turing \& machine universelle}
+{Modules : \texttt{turing.py}, \texttt{utm.py} \quad$\bullet$\quad App : \texttt{apps/mtu} \quad$\bullet$\quad Barème : 4 pts (+1)}
+
+\section*{Contexte}
+On lève la dernière limite : une mémoire \textbf{libre}, lisible \emph{et}
+ré-inscriptible n'importe où — la machine de Turing. Puis une idée vertigineuse :
+\textbf{une seule} machine peut simuler \textbf{toutes} les autres si on lui donne leur
+description. C'est la machine \textbf{universelle}, ancêtre du processeur et de l'interpréteur.
+
+\section*{Notions nouvelles du jour}
+
+\subsection*{1. La machine de Turing}
+$M=(Q,\Sigma,\Gamma,\delta,q_0,\text{\textvisiblespace},F)$ avec
+$\delta:Q\times\Gamma\to Q\times\Gamma\times\{L,R,S\}$. Une \textbf{tête} lit/écrit une
+case et se déplace : « dans l'état $q$, je lis $a$ $\to$ j'écris $b$, je bouge de $d$, je
+passe en $q'$ ». Différence avec la pile (jour~2) : ici on peut \textbf{relire et
+réécrire} le passé.
+
+\begin{center}
+\begin{tikzpicture}[start chain=going right, node distance=0mm]
+  \foreach \c/\i in {\_/-1,1/0,1/1,+/2,1/3,\_/4,\_/5} {\node[tapecell, on chain] (c\i) {\c};}
+  \node[above=5mm of c0, iutorange!85!black] (tete) {\small\bfseries tête, état \texttt{q0}};
+  \draw[tapehead] (tete) -- (c0);
+  \node[right=6mm of c5, font=\small\itshape, text width=30mm] {ruban bi-infini ; blanc \texttt{\_} ; entrée \texttt{11+1}.};
+\end{tikzpicture}
+\end{center}
+
+\subsection*{2. Une opération \emph{est} une machine : trace de \texttt{ADD} sur \texttt{11+1}}
+Table : \texttt{(q0,1)$\to$(q0,1,R)} ; \texttt{(q0,+)$\to$(q1,1,R)} ;
+\texttt{(q1,1)$\to$(q1,1,R)} ; \texttt{(q1,\_)$\to$(q2,\_,L)} ; \texttt{(q2,1)$\to$(qf,\_,S)}.
+La case sous la tête est notée \texttt{[\,]}.
+
+\begin{exemple}[Trace pas-à-pas — \texttt{2+1 = 3}]
+\begin{center}\small\ttfamily
+\begin{tabular}{@{}clll@{}}
+\toprule
+\rmfamily pas & \rmfamily état & \rmfamily ruban & \rmfamily action\\\midrule
+0 & q0 & [1]1+1 & lit 1 $\to$ R\\
+1 & q0 & 1[1]+1 & lit 1 $\to$ R\\
+2 & q0 & 11[+]1 & \rmfamily le \texttt{+} devient \texttt{1}, R, passe q1\\
+3 & q1 & 111[1] & lit 1 $\to$ R\\
+4 & q1 & 1111[\_] & \rmfamily blanc : demi-tour, passe q2\\
+5 & q2 & 111[1]\_ & \rmfamily efface le dernier 1, passe qf\\
+6 & qf & 111[\_] & \rmfamily \bfseries accepté ; ruban = 111 = 3\\
+\bottomrule
+\end{tabular}
+\end{center}
+Idée : \texttt{+}$\to$\texttt{1} \emph{fusionne} les deux blocs (on a $n{+}1{+}m$ uns),
+puis on retire \textbf{un} \texttt{1}. Coût $O(n{+}m)$.
+\end{exemple}
+
+\subsection*{3. Lire une table par \emph{phases} : la soustraction}
+\texttt{SUB} apparie un \texttt{1} de $m$ (marqué \texttt{X}) avec un \texttt{1} de $n$
+(barré \texttt{X}, de droite à gauche), jusqu'à épuiser $m$, puis nettoie. Chaque état
+est une \textbf{phase} :
+
+\begin{center}
+\begin{tikzpicture}[node distance=20mm and 22mm, on grid]
+  \node[etat] (q0) {q0};
+  \node[etat, right=of q0] (q1) {q1};
+  \node[etat, right=of q1] (q2) {q2};
+  \node[etat, below=of q1] (q3) {q3};
+  \node[etat, right=22mm of q2] (q4) {q4};
+  \node[etatfin, right=of q4, accepting] (qf) {qf};
+  \path[fleche]
+    (q0) edge node[above]{\scriptsize \texttt{-} : R} (q1)
+    (q1) edge node[above]{\scriptsize \texttt{1$\to$X}, L} (q2)
+    (q2) edge[bend left=15] node[below,pos=.4]{\scriptsize \texttt{-} : L} (q3)
+    (q3) edge[bend left=15] node[above,pos=.6]{\scriptsize \texttt{1$\to$X}, R} (q0)
+    (q1) edge[bend left=20] node[above]{\scriptsize \texttt{\_} : $m$ épuisé} (q4)
+    (q4) edge node[above]{\scriptsize nettoie X,\texttt{-}} (qf);
+\end{tikzpicture}
+\end{center}
+\noindent \textbf{Trois points délicats} (à expliquer au rapport) : \texttt{(q0,X)$\to$R}
+et \texttt{(q1,X)$\to$R} — la table doit gérer ses \emph{propres} marques ; le barrage
+\textbf{droite$\to$gauche} donne une sortie contiguë ; la fin de $m$ est détectée par un
+\textbf{blanc} (le ruban compte, pas un compteur).
+
+\subsection*{4. Codage $\langle M\rangle$ et machine universelle}
+Une MT n'est qu'une \textbf{table finie} : on l'écrit comme une \textbf{chaîne}
+$\langle M\rangle$ (\textbf{injective}, \textbf{décodable}). Un \emph{programme} devient
+une \emph{donnée}. La machine \textbf{universelle} $U$ prend $\langle M\rangle\,\#\#\,w$
+et \textbf{simule} $M$ (principe du \emph{programme enregistré}). Un \textbf{cycle} :
+
+\begin{center}
+\begin{tikzpicture}[noeudc/.style={draw=iutblue, very thick, rounded corners=3pt,
+    fill=iutblue!6, minimum height=8mm, inner xsep=5pt, font=\small\bfseries, text=iutblue},
+    fl/.style={-{Stealth[length=2mm]}, very thick, iutorange!85!black}]
+  \node[noeudc] (lire) {1. Lire le symbole simulé};
+  \node[noeudc, right=12mm of lire] (chercher) {2. Chercher la transition dans $\langle M\rangle$};
+  \node[noeudc, below=8mm of chercher] (ecrire) {3. Écrire le symbole};
+  \node[noeudc, left=12mm of ecrire] (bouger) {4. Déplacer la tête};
+  \node[noeudc, below=8mm of lire] (maj) {5. Mettre à jour l'état};
+  \draw[fl] (lire) -- (chercher); \draw[fl] (chercher) -- (ecrire);
+  \draw[fl] (ecrire) -- (bouger); \draw[fl] (bouger) -- (maj); \draw[fl] (maj) -- (lire);
+\end{tikzpicture}
+\end{center}
+
+\begin{notion}[Church--Turing \& composition]
+« Toute fonction effectivement calculable est calculable par une MT » : pas un théorème,
+mais une thèse étayée par l'\textbf{équivalence} de modèles indépendants ($\lambda$-calcul,
+fonctions récursives, RAM). On obtient $\times$ et $\div$ par \textbf{composition} de MT
+(mult.\ = additions répétées) — ce que fait $U$ en orchestrant des sous-programmes
+(\texttt{apps/mtu}). La calculatrice est \textbf{exécutée par} $U$ (\texttt{addition\_via\_utm}).
+\end{notion}
+
+\subsection*{5. La limite : indécidabilité}
+Revers de l'universalité : \textbf{on perd la décidabilité}. Le problème de l'\textbf{arrêt}
+(\textsc{halt}) est indécidable (Turing 1936) ; par réduction, « $U$ s'arrête sur
+$\langle M\rangle\#\#w$ » l'est aussi. \emph{Universel $\neq$ omniscient} : $U$ peut tout
+\textbf{simuler}, mais aucune machine ne \textbf{prédit} en général l'arrêt d'une autre.
+
+\section*{A. Théorie \normalfont(à rédiger) — 2 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[Q4.1 (0,5)] Schéma d'encodage $\langle M\rangle$ ; justifier injectif + décodable.
+  \item[Q4.2 (0,5)] Décrire $U$ et son cycle de simulation (invariant + un tour).
+  \item[Q4.3 (0,5)] Surcoût (\textbf{sourcé}) : multi-ruban $O(t\cdot|\langle M\rangle|)$ ;
+    multi$\to$mono $\le$ quadratique ; Hennie--Stearns (logarithmique).
+  \item[Q4.4 (0,5)] Indécidabilité par réduction depuis \textsc{halt}.
+\end{description}
+
+\section*{B. Pratique — 2 pts}
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E4.1 (0,5)] \texttt{TuringMachine.run} (ruban, arrêt, \texttt{trace}).
+  \item[E4.2 (0,5)] \texttt{encode}/\texttt{decode} + \texttt{UniversalTM.run}.
+  \item[E4.3 (0,75)] Tables \texttt{ADD}/\texttt{SUB} + \texttt{Calculatrice} ($\times,\div$ par composition).
+  \item[E4.4 (0,25)] \texttt{UniversalInterpreter.run} (encode puis délègue à $U$).
+\end{description}
+
+\begin{gate}
+\texttt{apps/mtu} ne réécrit aucune boucle de MT : il décrit des \textbf{tables} et les
+fait tourner via \texttt{formlang.turing}/\texttt{utm}. \emph{Honnêteté} : surcoût
+\textbf{référencé}, pas de constante « de mémoire ».
+\end{gate}
+
+\subsection*{Références}
+Turing 1936. \textbullet\ Sipser (MTU, indécidabilité). \textbullet\ Hennie \& Stearns
+1966 (\emph{J.~ACM} 13(4)). \textbullet\ Arora \& Barak 2009 (surcoûts).
+
+\end{document}

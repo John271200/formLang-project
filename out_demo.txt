@@ -1,0 +1,15 @@
+$ py pipeline.py
+== démo Shield (AttackDecomposer) ==
+  OK      seq(txt,txt)
+  OK      role (isolé)
+  BLOQUÉ  sys(role)
+  BLOQUÉ  seq(frame(ovr),txt)
+  BLOQUÉ  sys(seq(txt,frame(role)))
+
+$ py pipeline.py --word 4or
+        normalisé(FST) : aor
+       facteur_or(AFD) : True
+   délimiteurs_ok(PDA) : True
+
+$ py pipeline.py --morpho mufafak
+{'classe(BUTA)': 'PREFIXED'}

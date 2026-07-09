@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+out*.txt
+# livrables exigés par l'énoncé (exceptions à out*.txt)
+!out_tests.txt
+!out_demo.txt
+.DS_Store
