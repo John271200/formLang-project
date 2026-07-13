@@ -1,7 +1,7 @@
 # Rapport de projet — formlang
 
-**Binôme :** AGBESSI John Ulrich · LATOOUNDJI Gregoire
-**Dépôt Git :** https://github.com/John271200/formLang-project   ·   **Commit final :** `ff9b113`
+**Binôme :** AGBESSI John Ulrich · LATOUNDJI Gregoire
+**Dépôt Git :** https://github.com/John271200/AGBESSI_John_LATOUNDJI_Gregoire_formlang   ·   **Commit final :** tag `rendu-final`
 
 > Tous les chiffres de ce rapport sont issus de **nos propres exécutions**
 > (machine Windows 10, Python 3.11.9). Les bornes de complexité sont démontrées
